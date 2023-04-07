@@ -21,7 +21,36 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 
     private void Update()
     {
-        Debug.Log(NetworkManager.Instance.ownId);
+        if (!NetworkManager.Instance.isServer)
+        {
+            Vector3 move = Vector3.zero;
+            bool hasMove = false;
+            if (Input.GetKey(KeyCode.W))
+            {
+                move = new Vector3(0, 0, 1) * Time.deltaTime;
+                hasMove = true;
+            }
+            if (Input.GetKey(KeyCode.S))
+            {
+                move = new Vector3(0, 0, -1) * Time.deltaTime;
+                hasMove = true;
+            }
+            if (Input.GetKey(KeyCode.A))
+            {
+                hasMove = true;
+                move = new Vector3(-1, 0, 0) * Time.deltaTime;
+            }
+            if (Input.GetKey(KeyCode.D))
+            {
+                hasMove = true;
+                move = new Vector3(1, 0, 0) * Time.deltaTime;
+            }
+
+            if (hasMove)
+            {
+                NetworkManager.Instance.SendToServer(new NetVector3(move));
+            }
+        }
         
     }
 

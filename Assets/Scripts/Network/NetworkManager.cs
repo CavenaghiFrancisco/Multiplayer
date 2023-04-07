@@ -142,14 +142,16 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
             messageType = BitConverter.ToInt32(data, 0);
         }
 
+        if (!isServer)
+        {
+
+        }
         switch ((MessageType)messageType)
         {
             case MessageType.Position:
                 NetVector3 f = new NetVector3(Vector3.zero);
-                if (!NetworkManager.Instance.isServer)
-                    players[0].transform.position += f.Deserialize(data);
-                else
-                    players[1].transform.position += f.Deserialize(data);
+                if(!isServer)
+                    NetworkManager.Instance.players[BitConverter.ToInt32(data, 4) - 1].GetComponent<Player>().Move(f.Deserialize(data));
                 break;
             case MessageType.Console:
                 NetString g = new NetString("");

@@ -25,6 +25,7 @@ public interface IMessage<T>
 
 public class NetVector3 : IMessage<UnityEngine.Vector3>
 {
+    int id = NetworkManager.Instance.ownId;
     Vector3 data;
     static int instance = 0;
 
@@ -37,9 +38,9 @@ public class NetVector3 : IMessage<UnityEngine.Vector3>
     {
         Vector3 outData;
 
-        outData.x = BitConverter.ToSingle(message, 8);
-        outData.y = BitConverter.ToSingle(message, 12);
-        outData.z = BitConverter.ToSingle(message, 16);
+        outData.x = BitConverter.ToSingle(message, 12);
+        outData.y = BitConverter.ToSingle(message, 16);
+        outData.z = BitConverter.ToSingle(message, 20);
 
         return outData;
     }
@@ -55,6 +56,7 @@ public class NetVector3 : IMessage<UnityEngine.Vector3>
         List<byte> outData = new List<byte>();
 
         outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
+        outData.AddRange(BitConverter.GetBytes(id));
         outData.AddRange(BitConverter.GetBytes(instance++));
         outData.AddRange(BitConverter.GetBytes(data.x));
         outData.AddRange(BitConverter.GetBytes(data.y));
@@ -67,6 +69,7 @@ public class NetVector3 : IMessage<UnityEngine.Vector3>
 
 public class NetString : IMessage<String>
 {
+    int id = NetworkManager.Instance.ownId;
     String data;
     static int instance = 0;
 
@@ -80,7 +83,7 @@ public class NetString : IMessage<String>
     {
         String outData;
 
-        outData = BitConverter.ToString(message,8);
+        outData = BitConverter.ToString(message,12);
 
         return outData;
     }
@@ -95,6 +98,7 @@ public class NetString : IMessage<String>
         List<byte> outData = new List<byte>();
 
         outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
+        outData.AddRange(BitConverter.GetBytes(id));
         outData.AddRange(BitConverter.GetBytes(instance++));
 
         for (int i = 0; i < data.Length; i++)
@@ -108,6 +112,7 @@ public class NetString : IMessage<String>
 
 public class NetHandShake : IMessage<(long, int)>
 {
+    int id = NetworkManager.Instance.ownId;
     (long, int) data;
     static int instance = 0;
 
