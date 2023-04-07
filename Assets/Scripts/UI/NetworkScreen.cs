@@ -26,8 +26,6 @@ public class NetworkScreen : MonoBehaviourSingleton<NetworkScreen>
 
         NetworkManager.Instance.StartClient(ipAddress, port);
 
-        NetVector3 a = new NetVector3(new Vector3(3, 0, 0));
-
         SwitchToChatScreen();
     }
 
