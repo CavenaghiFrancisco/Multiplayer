@@ -149,9 +149,9 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         switch ((MessageType)messageType)
         {
             case MessageType.Position:
-                NetVector3 f = new NetVector3(Vector3.zero);
+                NetVector3 f = new NetVector3(Vector3.zero, Vector3.zero);
                 if(!isServer)
-                    NetworkManager.Instance.players[BitConverter.ToInt32(data, 4) - 1].GetComponent<Player>().Move(f.Deserialize(data));
+                    NetworkManager.Instance.players[BitConverter.ToInt32(data, 4) - 1].GetComponent<Player>().Move(f.Deserialize(data).Item1,f.Deserialize(data).Item2);
                 break;
             case MessageType.Console:
                 NetString g = new NetString("");

@@ -23,24 +23,28 @@ public interface IMessage<T>
     public T Deserialize(byte[] message);
 }
 
-public class NetVector3 : IMessage<UnityEngine.Vector3>
+public class NetVector3 : IMessage<(UnityEngine.Vector3, UnityEngine.Vector3)>
 {
     int id = NetworkManager.Instance.ownId;
-    Vector3 data;
+    (Vector3,Vector3) data;
     static int instance = 0;
 
-    public NetVector3(Vector3 data)
+    public NetVector3(Vector3 position,Vector3 movement)
     {
-        this.data = data;
+        data.Item1 = position;
+        data.Item2 = movement;
     }
 
-    public Vector3 Deserialize(byte[] message)
+    public (Vector3, Vector3) Deserialize(byte[] message)
     {
-        Vector3 outData;
+        (Vector3,Vector3) outData;
 
-        outData.x = BitConverter.ToSingle(message, 12);
-        outData.y = BitConverter.ToSingle(message, 16);
-        outData.z = BitConverter.ToSingle(message, 20);
+        outData.Item1.x = BitConverter.ToSingle(message, 12);
+        outData.Item1.y = BitConverter.ToSingle(message, 16);
+        outData.Item1.z = BitConverter.ToSingle(message, 20);
+        outData.Item2.x = BitConverter.ToSingle(message, 24);
+        outData.Item2.y = BitConverter.ToSingle(message, 28);
+        outData.Item2.z = BitConverter.ToSingle(message, 32);
 
         return outData;
     }
@@ -58,9 +62,12 @@ public class NetVector3 : IMessage<UnityEngine.Vector3>
         outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
         outData.AddRange(BitConverter.GetBytes(id));
         outData.AddRange(BitConverter.GetBytes(instance++));
-        outData.AddRange(BitConverter.GetBytes(data.x));
-        outData.AddRange(BitConverter.GetBytes(data.y));
-        outData.AddRange(BitConverter.GetBytes(data.z));
+        outData.AddRange(BitConverter.GetBytes(data.Item1.x));
+        outData.AddRange(BitConverter.GetBytes(data.Item1.y));
+        outData.AddRange(BitConverter.GetBytes(data.Item1.z));
+        outData.AddRange(BitConverter.GetBytes(data.Item2.x));
+        outData.AddRange(BitConverter.GetBytes(data.Item2.y));
+        outData.AddRange(BitConverter.GetBytes(data.Item2.z));
 
         return outData.ToArray();
     }
