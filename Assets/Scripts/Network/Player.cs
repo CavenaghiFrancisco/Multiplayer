@@ -8,10 +8,6 @@ public class Player : MonoBehaviour
     public Vector3 pos;
     private bool firstTime = true;
 
-    private void Start()
-    {
-    }
-
     public int ID
     {
         get { return id; }

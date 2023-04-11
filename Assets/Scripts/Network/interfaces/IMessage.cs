@@ -27,7 +27,7 @@ public class NetVector3 : IMessage<(UnityEngine.Vector3, UnityEngine.Vector3)>
 {
     int id = NetworkManager.Instance.ownId;
     (Vector3,Vector3) data;
-    static int instance = 0;
+    static int instance = 1;
 
     public NetVector3(Vector3 position,Vector3 movement)
     {
@@ -78,7 +78,7 @@ public class NetString : IMessage<String>
 {
     int id = NetworkManager.Instance.ownId;
     String data;
-    static int instance = 0;
+    static int instance = 1;
 
 
     public NetString(String data)
@@ -88,9 +88,10 @@ public class NetString : IMessage<String>
 
     public String Deserialize(byte[] message)
     {
-        String outData;
+        String outData = "";
 
-        outData = BitConverter.ToString(message,12);
+        for(int i = 12; i < message.Length; i += sizeof(char))
+            outData += BitConverter.ToChar(message,i);
 
         return outData;
     }
@@ -119,9 +120,7 @@ public class NetString : IMessage<String>
 
 public class NetHandShake : IMessage<(long, int)>
 {
-    int id = NetworkManager.Instance.ownId;
     (long, int) data;
-    static int instance = 0;
 
 
     public NetHandShake(){}
@@ -134,8 +133,8 @@ public class NetHandShake : IMessage<(long, int)>
 
     public (long, int) Deserialize(byte[] message)
     {
-        data.Item1 = BitConverter.ToInt64(message, 8);
-        data.Item2 = BitConverter.ToInt32(message, 16);
+        data.Item1 = BitConverter.ToInt64(message, 4);
+        data.Item2 = BitConverter.ToInt32(message, 12);
 
         return data;
     }
@@ -150,7 +149,6 @@ public class NetHandShake : IMessage<(long, int)>
         List<byte> outData = new List<byte>();
 
         outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
-        outData.AddRange(BitConverter.GetBytes(instance++));
         outData.AddRange(BitConverter.GetBytes(data.Item1));
         outData.AddRange(BitConverter.GetBytes(data.Item2));
 
@@ -163,7 +161,6 @@ public class NetHandShake : IMessage<(long, int)>
 public class NetPlayersList : IMessage<Dictionary<int,Client>>
 {
     Dictionary<int, Client> data;
-    static int instance = 0;
 
     public NetPlayersList() { }
 
@@ -182,7 +179,6 @@ public class NetPlayersList : IMessage<Dictionary<int,Client>>
         BinaryFormatter formatter = new BinaryFormatter();
         MemoryStream stream = new MemoryStream();
         formatter.Serialize(stream, (int)GetMessageType());
-        formatter.Serialize(stream, instance++); 
         formatter.Serialize(stream, data);
         stream.Close();
 
@@ -193,7 +189,7 @@ public class NetPlayersList : IMessage<Dictionary<int,Client>>
     {
         BinaryFormatter formatter = new BinaryFormatter();
         MemoryStream stream = new MemoryStream(message);
-        stream.Position = 108;
+        stream.Position = 54;
         data = (Dictionary<int, Client>)formatter.Deserialize(stream);
 
         return data;

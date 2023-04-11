@@ -254,7 +254,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   player: {fileID: 6802606016601642824, guid: e825a9fd9e4006d48a916c19c7944651, type: 3}
+  players: []
   TimeOut: 30
+  clientId: 0
+  ownId: 0
+  ownIdAssigned: 0
 --- !u!4 &180350410
 Transform:
   m_ObjectHideFlags: 0
@@ -1174,6 +1178,7 @@ MonoBehaviour:
   players:
   - {fileID: 0}
   - {fileID: 0}
+  chatPanel: {fileID: 1458419250}
   messages: {fileID: 2097084993}
   inputMessage: {fileID: 1132568522}
 --- !u!1 &1132568520

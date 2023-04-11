@@ -51,13 +51,15 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     public int TimeOut = 30;
 
     public Action<byte[], IPEndPoint> OnReceiveEvent;
+    public Action<string> OnReceiveConsoleMessage;
 
     private UdpConnection connection;
 
     private readonly Dictionary<int, Client> clients = new Dictionary<int, Client>();
     private readonly Dictionary<IPEndPoint, int> ipToId = new Dictionary<IPEndPoint, int>();
 
-    public Dictionary<Client,Dictionary<MessageType,int>> clientsMessages = new Dictionary<Client,Dictionary<MessageType, int>>();
+    public Dictionary<Client, Dictionary<MessageType, int>> clientsMessages = new Dictionary<Client, Dictionary<MessageType, int>>();
+    
 
     public int clientId = 0; // This id should be generated during first handshake
 
@@ -103,7 +105,14 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         int id = clientId;
         ipToId[ip] = clientId;
 
-        clients.Add(clientId, new Client(ip, id, Time.realtimeSinceStartup));
+        Client client = new Client(ip, id, Time.realtimeSinceStartup);
+
+        clients.Add(clientId, client);
+
+        clientsMessages.Add(client, new Dictionary<MessageType, int>());
+        clientsMessages[client].Add(MessageType.Position, 0);
+        clientsMessages[client].Add(MessageType.Console, 0);
+
 
         clientId++;
 
@@ -128,34 +137,45 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
     public void OnReceiveData(byte[] data, IPEndPoint ip)
     {
-        int messageType = -20;
-        try
-        {
-            using (MemoryStream stream = new MemoryStream(data))
-            {
-                BinaryFormatter formatter = new BinaryFormatter();
-                messageType = (int)formatter.Deserialize(stream);
-            }
-        }
-        catch
-        {
-            messageType = BitConverter.ToInt32(data, 0);
-        }
-
-        if (!isServer)
-        {
-
-        }
+        int messageType = PackageReceiver.CheckMessage(data);
+        int instance;
+        int id;
         switch ((MessageType)messageType)
         {
             case MessageType.Position:
                 NetVector3 f = new NetVector3(Vector3.zero, Vector3.zero);
-                if(!isServer)
-                    NetworkManager.Instance.players[BitConverter.ToInt32(data, 4) - 1].GetComponent<Player>().Move(f.Deserialize(data).Item1,f.Deserialize(data).Item2);
+                if (!isServer && ownId != BitConverter.ToInt32(data, 4))
+                {
+                    instance = BitConverter.ToInt32(data, 8);
+                    id = BitConverter.ToInt32(data, 4) - 1;
+                    if (instance > clientsMessages[clients[id]][MessageType.Position])
+                    {
+                        clientsMessages[clients[id]][MessageType.Position] = instance;
+                        NetworkManager.Instance.players[id].GetComponent<Player>().Move(f.Deserialize(data).Item1, f.Deserialize(data).Item2);
+                    }
+                    else
+                    {
+                        Debug.Log("Ser perdio el mensaje" + instance);
+                    }
+                }
                 break;
             case MessageType.Console:
-                NetString g = new NetString("");
-                Debug.Log(g.Deserialize(data));
+                instance = BitConverter.ToInt32(data, 8);
+                id = BitConverter.ToInt32(data, 4) - 1;
+                if (!isServer && ownId != BitConverter.ToInt32(data, 4))
+                {
+                    if (instance > clientsMessages[clients[id]][MessageType.Console])
+                    {
+                        NetString g = new NetString("");
+                        clientsMessages[clients[id]][MessageType.Console] = instance;
+                        OnReceiveConsoleMessage(g.Deserialize(data));
+                        Debug.Log(g.Deserialize(data));
+                    }
+                    else
+                    {
+                        Debug.Log("Ser perdio el mensaje de consola" + instance);
+                    }
+                }
                 break;
             case MessageType.HandShake:
                 AddClient(ip);
@@ -167,17 +187,17 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                     ownIdAssigned = true;
                     ownId = new NetPlayersList().Deserialize(data).Count;
                 }
-                foreach(KeyValuePair<int, Client> kvp in new NetPlayersList().Deserialize(data))
+                foreach (KeyValuePair<int, Client> kvp in new NetPlayersList().Deserialize(data))
                 {
                     int count = 0;
-                    foreach(GameObject player in players)
+                    foreach (GameObject player in players)
                     {
-                        if(player.GetComponent<Player>().ID != kvp.Value.id)
-                        { 
+                        if (player.GetComponent<Player>().ID != kvp.Value.id)
+                        {
                             count++;
                         }
                     }
-                    if(count == players.Count)
+                    if (count == players.Count)
                     {
                         Player newPlayer = Instantiate(player).GetComponent<Player>();
 
