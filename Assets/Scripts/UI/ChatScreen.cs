@@ -9,14 +9,18 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
     public GameObject[] players;
     public GameObject chatPanel;
     public Text messages;
+    public Text id;
+    public Text clientsQuantity;
     public Text messagesQuantityText;
     public int messagesQuantity;
     public GameObject messagesGO;
     public InputField inputMessage;
     private bool isOn = false;
+    private Animator anim;
 
     protected override void Initialize()
     {
+        anim = messagesGO.GetComponent<Animator>();
         NetworkManager.Instance.OnReceiveConsoleMessage += UpdateMessage;
 
         inputMessage.onEndEdit.AddListener(OnEndEdit);
@@ -31,6 +35,13 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
     {
         if (!NetworkManager.Instance.isServer)
         {
+            clientsQuantity.text = "Hay " + NetworkManager.Instance.players.Count + " clientes conectados";
+            id.text = "ID: " + NetworkManager.Instance.ownId;
+        }
+        
+
+        if (!NetworkManager.Instance.isServer)
+        {
             if (Input.GetKeyDown(KeyCode.Tab))
             {
                 messages.gameObject.SetActive(!isOn);
@@ -41,11 +52,13 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
                 if (isOn)
                 {
                     messagesQuantity = 0;
+                    anim.SetInteger("Messages", messagesQuantity);
                 }
                 if (!isOn)
                 {
                     messagesQuantity = 0;
                     messagesQuantityText.text = messagesQuantity + " new messages";
+                    anim.SetInteger("Messages", messagesQuantity);
                 }
             }
             
@@ -106,6 +119,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
         {
             messagesQuantity++;
             messagesQuantityText.text = messagesQuantity + " new messages!";
+            anim.SetInteger("Messages", messagesQuantity);
         }
         
     }

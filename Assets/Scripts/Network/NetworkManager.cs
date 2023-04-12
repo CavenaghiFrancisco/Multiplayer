@@ -105,7 +105,10 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
         Client client = new Client(ip, id, Time.realtimeSinceStartup);
 
-        clients.Add(clientId, client);
+        if (!clients.ContainsKey(clientId))
+        {
+            clients.Add(clientId, client);
+        }
 
         clientsMessages.Add(client, new Dictionary<MessageType, int>());
         clientsMessages[client].Add(MessageType.Position, 0);
@@ -142,6 +145,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         {
             case MessageType.Position:
                 NetVector3 f = new NetVector3(Vector3.zero);
+                id = BitConverter.ToInt32(data, 4);
                 if (!isServer && ownId != BitConverter.ToInt32(data, 4))
                 {
                     instance = BitConverter.ToInt32(data, 8);
@@ -183,7 +187,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 if (!ownIdAssigned)
                 {
                     ownIdAssigned = true;
-                    ownId = new NetPlayersList().Deserialize(data).Count;
+                    ownId = new NetPlayersList().Deserialize(data)[new NetPlayersList().Deserialize(data).Count-1].id + 1;
                 }
                 foreach (KeyValuePair<int, Client> kvp in new NetPlayersList().Deserialize(data))
                 {
@@ -197,11 +201,19 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                     }
                     if (count == players.Count)
                     {
+                        if (!clients.ContainsKey(kvp.Value.id))
+                        {
+                            clients.Add(kvp.Value.id, kvp.Value);
+                        }
                         Player newPlayer = Instantiate(player).GetComponent<Player>();
 
                         newPlayer.ID = kvp.Value.id;
 
                         players.Add(newPlayer.gameObject);
+
+                        clientsMessages.Add(kvp.Value, new Dictionary<MessageType, int>());
+                        clientsMessages[kvp.Value].Add(MessageType.Position, 0);
+                        clientsMessages[kvp.Value].Add(MessageType.Console, 0);
                     }
                 }
                 break;
