@@ -6,7 +6,6 @@ public class Player : MonoBehaviour
 {
     [SerializeField] private int id;
     public Vector3 pos;
-    private bool firstTime = true;
 
     public int ID
     {
@@ -14,13 +13,8 @@ public class Player : MonoBehaviour
         set { id = value; }
     }
 
-    public void Move(Vector3 position,Vector3 movement)
+    public void Move(Vector3 position)
     {
-        if (firstTime)
-        {
-            pos = position;
-        }
-        pos += movement;
-        transform.position = pos;
+        transform.position = position;
     }
 }

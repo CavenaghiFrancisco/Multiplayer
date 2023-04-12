@@ -9,6 +9,9 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
     public GameObject[] players;
     public GameObject chatPanel;
     public Text messages;
+    public Text messagesQuantityText;
+    public int messagesQuantity;
+    public GameObject messagesGO;
     public InputField inputMessage;
     private bool isOn = false;
 
@@ -33,8 +36,19 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
                 messages.gameObject.SetActive(!isOn);
                 inputMessage.gameObject.SetActive(!isOn);
                 chatPanel.SetActive(!isOn);
+                messagesGO.SetActive(isOn);
                 isOn = !isOn;
+                if (isOn)
+                {
+                    messagesQuantity = 0;
+                }
+                if (!isOn)
+                {
+                    messagesQuantity = 0;
+                    messagesQuantityText.text = messagesQuantity + " new messages";
+                }
             }
+            
             Vector3 move = Vector3.zero;
 
             if (!isOn)
@@ -62,10 +76,15 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 
 
                 }
-                NetworkManager.Instance.players[NetworkManager.Instance.ownId - 1].GetComponent<Player>().Move(NetworkManager.Instance.players[NetworkManager.Instance.ownId - 1].GetComponent<Player>().pos, move);
+                NetworkManager.Instance.players[NetworkManager.Instance.ownId - 1].GetComponent<Player>().transform.position += move;
 
-                NetworkManager.Instance.SendToServer(new NetVector3(NetworkManager.Instance.players[NetworkManager.Instance.ownId - 1].GetComponent<Player>().pos, move));
+                NetworkManager.Instance.SendToServer(new NetVector3(NetworkManager.Instance.players[NetworkManager.Instance.ownId - 1].GetComponent<Player>().transform.position));
             }
+            else
+            {
+
+            }
+            
        
         }
         
@@ -82,7 +101,13 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 
     private void UpdateMessage(string data)
     {
-        messages.text += data + System.Environment.NewLine;
+        messages.text += "Otro: " + data + System.Environment.NewLine;
+        if (!isOn)
+        {
+            messagesQuantity++;
+            messagesQuantityText.text = messagesQuantity + " new messages!";
+        }
+        
     }
 
     private void OnEndEdit(string str)
@@ -92,7 +117,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
             if (!NetworkManager.Instance.isServer)
             {
                 NetworkManager.Instance.SendToServer(new NetString(inputMessage.text));
-                messages.text += inputMessage.text + System.Environment.NewLine;
+                messages.text += "Yo: " + inputMessage.text + System.Environment.NewLine;
             }
 
             inputMessage.ActivateInputField();

@@ -42,8 +42,6 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         get; private set;
     }
 
-    bool firstTime = true;
-
     public GameObject player;
     
     public List<GameObject> players;
@@ -143,7 +141,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         switch ((MessageType)messageType)
         {
             case MessageType.Position:
-                NetVector3 f = new NetVector3(Vector3.zero, Vector3.zero);
+                NetVector3 f = new NetVector3(Vector3.zero);
                 if (!isServer && ownId != BitConverter.ToInt32(data, 4))
                 {
                     instance = BitConverter.ToInt32(data, 8);
@@ -151,11 +149,11 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                     if (instance > clientsMessages[clients[id]][MessageType.Position])
                     {
                         clientsMessages[clients[id]][MessageType.Position] = instance;
-                        NetworkManager.Instance.players[id].GetComponent<Player>().Move(f.Deserialize(data).Item1, f.Deserialize(data).Item2);
+                        NetworkManager.Instance.players[id].GetComponent<Player>().Move(f.Deserialize(data));
                     }
                     else
                     {
-                        Debug.Log("Ser perdio el mensaje" + instance);
+                        Debug.Log("Se perdio el mensaje" + instance);
                     }
                 }
                 break;
