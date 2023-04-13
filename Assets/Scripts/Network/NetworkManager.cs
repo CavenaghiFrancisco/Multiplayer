@@ -49,7 +49,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     public int TimeOut = 30;
 
     public Action<byte[], IPEndPoint> OnReceiveEvent;
-    public Action<string> OnReceiveConsoleMessage;
+    public Action<string,int> OnReceiveConsoleMessage;
 
     private UdpConnection connection;
 
@@ -64,7 +64,6 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     public int ownId;
 
     public bool ownIdAssigned;
-
 
     public void StartServer(int port)
     {
@@ -170,8 +169,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                     {
                         NetString g = new NetString("");
                         clientsMessages[clients[id]][MessageType.Console] = instance;
-                        OnReceiveConsoleMessage(g.Deserialize(data));
-                        Debug.Log(g.Deserialize(data));
+                        OnReceiveConsoleMessage("Cliente-ID-" + (id+1) + ":" + g.Deserialize(data), id+1);
                     }
                     else
                     {
@@ -205,7 +203,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                         {
                             clients.Add(kvp.Value.id, kvp.Value);
                         }
-                        Player newPlayer = Instantiate(player).GetComponent<Player>();
+                        Player newPlayer = Instantiate(player,transform.position,Quaternion.identity).GetComponent<Player>();
 
                         newPlayer.ID = kvp.Value.id;
 

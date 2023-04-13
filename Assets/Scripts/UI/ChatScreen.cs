@@ -52,13 +52,13 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
                 if (isOn)
                 {
                     messagesQuantity = 0;
-                    anim.SetInteger("Messages", messagesQuantity);
+                    anim.Play("quiet");
                 }
                 if (!isOn)
                 {
                     messagesQuantity = 0;
                     messagesQuantityText.text = messagesQuantity + " new messages";
-                    anim.SetInteger("Messages", messagesQuantity);
+                    anim.Play("quiet");
                 }
             }
             
@@ -68,7 +68,14 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
             {
                 if (!NetworkManager.Instance.isServer)
                 {
-
+                    if (Input.GetKey(KeyCode.Q))
+                    {
+                        move = new Vector3(0, -5, 0) * Time.deltaTime;
+                    }
+                    if (Input.GetKey(KeyCode.E))
+                    {
+                        move = new Vector3(0, 5, -5) * Time.deltaTime;
+                    }
                     if (Input.GetKey(KeyCode.W))
                     {
                         move = new Vector3(0, 0, 5) * Time.deltaTime;
@@ -90,18 +97,9 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 
                 }
                 NetworkManager.Instance.players[NetworkManager.Instance.ownId - 1].GetComponent<Player>().transform.position += move;
-
-                NetworkManager.Instance.SendToServer(new NetVector3(NetworkManager.Instance.players[NetworkManager.Instance.ownId - 1].GetComponent<Player>().transform.position));
             }
-            else
-            {
-
-            }
-            
-       
+            NetworkManager.Instance.SendToServer(new NetVector3(NetworkManager.Instance.players[NetworkManager.Instance.ownId - 1].GetComponent<Player>().transform.position));
         }
-        
-        
     }
 
     private void OnReceiveDataEvent(byte[] data, IPEndPoint ep)
@@ -112,26 +110,38 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
         }
     }
 
-    private void UpdateMessage(string data)
-    {
-        messages.text += "Otro: " + data + System.Environment.NewLine;
+    private void UpdateMessage(string data, int id)
+    {   
+        Color color = NetworkManager.Instance.players[id - 1].GetComponent<Player>().color;
+        int r = (int)(color.r * 255f);
+        int g = (int)(color.g * 255f);
+        int b = (int)(color.b * 255f);
+        int a = (int)(color.a * 255f);
+
+        messages.text += "<color=" + string.Format("#{0:X2}{1:X2}{2:X2}{3:X2}", r, g, b, a) + ">" +  data + System.Environment.NewLine + "</color>";
         if (!isOn)
         {
             messagesQuantity++;
             messagesQuantityText.text = messagesQuantity + " new messages!";
-            anim.SetInteger("Messages", messagesQuantity);
+            anim.Play("noise");
         }
         
     }
 
     private void OnEndEdit(string str)
     {
+        Color color = NetworkManager.Instance.players[NetworkManager.Instance.ownId - 1].GetComponent<Player>().color;
+        int r = (int)(color.r * 255f);
+        int g = (int)(color.g * 255f);
+        int b = (int)(color.b * 255f);
+        int a = (int)(color.a * 255f);
+
         if (inputMessage.text != "")
         {
             if (!NetworkManager.Instance.isServer)
             {
                 NetworkManager.Instance.SendToServer(new NetString(inputMessage.text));
-                messages.text += "Yo: " + inputMessage.text + System.Environment.NewLine;
+                messages.text += "<color=" + string.Format("#{0:X2}{1:X2}{2:X2}{3:X2}", r, g, b, a) + ">" + "Yo: " + inputMessage.text + System.Environment.NewLine + "</color>";
             }
 
             inputMessage.ActivateInputField();
