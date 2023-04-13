@@ -74,7 +74,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
                     }
                     if (Input.GetKey(KeyCode.E))
                     {
-                        move = new Vector3(0, 5, -5) * Time.deltaTime;
+                        move = new Vector3(0, 5, 0) * Time.deltaTime;
                     }
                     if (Input.GetKey(KeyCode.W))
                     {
