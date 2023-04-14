@@ -16,7 +16,7 @@ public class NetworkScreen : MonoBehaviourSingleton<NetworkScreen>
     protected override void Initialize()
     {
         connectBtn.onClick.AddListener(OnConnectBtnClick);
-        startServerBtn.onClick.AddListener(OnStartServerBtnClick);
+        //startServerBtn.onClick.AddListener(OnStartServerBtnClick);
     }
 
     private void OnConnectBtnClick()

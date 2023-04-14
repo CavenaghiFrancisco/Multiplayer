@@ -65,6 +65,13 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
     public bool ownIdAssigned;
 
+    private void Start()
+    {
+    #if UNITY_SERVER
+        StartServer(9000);
+    #endif
+    }
+
     public void StartServer(int port)
     {
         isServer = true;
