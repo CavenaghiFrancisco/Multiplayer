@@ -31,75 +31,84 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 
     }
 
+    private void OnApplicationQuit()
+    {
+        NetworkManager.Instance.SendToServer(new NetDisconnect("a"));
+    }
+
     private void Update()
     {
-        if (!NetworkManager.Instance.isServer)
+        if (NetworkManager.Instance.ownIdAssigned)
         {
-            clientsQuantity.text = "Hay " + NetworkManager.Instance.players.Count + " clientes conectados";
-            id.text = "ID: " + NetworkManager.Instance.ownId;
-        }
-        
-
-        if (!NetworkManager.Instance.isServer)
-        {
-            if (Input.GetKeyDown(KeyCode.Tab))
+            if (!NetworkManager.Instance.isServer)
             {
-                messages.gameObject.SetActive(!isOn);
-                inputMessage.gameObject.SetActive(!isOn);
-                chatPanel.SetActive(!isOn);
-                messagesGO.SetActive(isOn);
-                isOn = !isOn;
-                if (isOn)
+                clientsQuantity.text = "Hay " + NetworkManager.Instance.players.Count + " clientes conectados";
+                id.text = "ID: " + NetworkManager.Instance.ownId;
+            }
+
+
+            if (!NetworkManager.Instance.isServer)
+            {
+                if (Input.GetKeyDown(KeyCode.Tab))
                 {
-                    messagesQuantity = 0;
-                    anim.Play("quiet");
+                    messages.gameObject.SetActive(!isOn);
+                    inputMessage.gameObject.SetActive(!isOn);
+                    chatPanel.SetActive(!isOn);
+                    messagesGO.SetActive(isOn);
+                    isOn = !isOn;
+                    if (isOn)
+                    {
+                        messagesQuantity = 0;
+                        anim.Play("quiet");
+                    }
+                    if (!isOn)
+                    {
+                        messagesQuantity = 0;
+                        messagesQuantityText.text = messagesQuantity + " new messages";
+                        anim.Play("quiet");
+                    }
                 }
+
+                Vector3 move = Vector3.zero;
+
                 if (!isOn)
                 {
-                    messagesQuantity = 0;
-                    messagesQuantityText.text = messagesQuantity + " new messages";
-                    anim.Play("quiet");
+                    if (!NetworkManager.Instance.isServer)
+                    {
+                        if (Input.GetKey(KeyCode.Q))
+                        {
+                            move = new Vector3(0, -5, 0) * Time.deltaTime;
+                        }
+                        if (Input.GetKey(KeyCode.E))
+                        {
+                            move = new Vector3(0, 5, 0) * Time.deltaTime;
+                        }
+                        if (Input.GetKey(KeyCode.W))
+                        {
+                            move = new Vector3(0, 0, 5) * Time.deltaTime;
+                        }
+                        if (Input.GetKey(KeyCode.S))
+                        {
+                            move = new Vector3(0, 0, -5) * Time.deltaTime;
+                        }
+                        if (Input.GetKey(KeyCode.A))
+                        {
+                            move = new Vector3(-5, 0, 0) * Time.deltaTime;
+                        }
+                        if (Input.GetKey(KeyCode.D))
+                        {
+                            move = new Vector3(5, 0, 0) * Time.deltaTime;
+                        }
+
+
+
+                    }
+                    NetworkManager.Instance.players[NetworkManager.Instance.ownId].GetComponent<Player>().transform.position += move;
                 }
+                NetworkManager.Instance.SendToServer(new NetVector3(NetworkManager.Instance.players[NetworkManager.Instance.ownId].GetComponent<Player>().transform.position));
             }
-            
-            Vector3 move = Vector3.zero;
-
-            if (!isOn)
-            {
-                if (!NetworkManager.Instance.isServer)
-                {
-                    if (Input.GetKey(KeyCode.Q))
-                    {
-                        move = new Vector3(0, -5, 0) * Time.deltaTime;
-                    }
-                    if (Input.GetKey(KeyCode.E))
-                    {
-                        move = new Vector3(0, 5, 0) * Time.deltaTime;
-                    }
-                    if (Input.GetKey(KeyCode.W))
-                    {
-                        move = new Vector3(0, 0, 5) * Time.deltaTime;
-                    }
-                    if (Input.GetKey(KeyCode.S))
-                    {
-                        move = new Vector3(0, 0, -5) * Time.deltaTime;
-                    }
-                    if (Input.GetKey(KeyCode.A))
-                    {
-                        move = new Vector3(-5, 0, 0) * Time.deltaTime;
-                    }
-                    if (Input.GetKey(KeyCode.D))
-                    {
-                        move = new Vector3(5, 0, 0) * Time.deltaTime;
-                    }
-
-
-
-                }
-                NetworkManager.Instance.players[NetworkManager.Instance.ownId - 1].GetComponent<Player>().transform.position += move;
-            }
-            NetworkManager.Instance.SendToServer(new NetVector3(NetworkManager.Instance.players[NetworkManager.Instance.ownId - 1].GetComponent<Player>().transform.position));
         }
+       
     }
 
     private void OnReceiveDataEvent(byte[] data, IPEndPoint ep)
@@ -112,7 +121,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 
     private void UpdateMessage(string data, int id)
     {   
-        Color color = NetworkManager.Instance.players[id - 1].GetComponent<Player>().color;
+        Color color = NetworkManager.Instance.players[id].GetComponent<Player>().color;
         int r = (int)(color.r * 255f);
         int g = (int)(color.g * 255f);
         int b = (int)(color.b * 255f);
@@ -130,7 +139,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 
     private void OnEndEdit(string str)
     {
-        Color color = NetworkManager.Instance.players[NetworkManager.Instance.ownId - 1].GetComponent<Player>().color;
+        Color color = NetworkManager.Instance.players[NetworkManager.Instance.ownId].GetComponent<Player>().color;
         int r = (int)(color.r * 255f);
         int g = (int)(color.g * 255f);
         int b = (int)(color.b * 255f);

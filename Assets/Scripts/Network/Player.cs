@@ -32,7 +32,7 @@ public class Player : MonoBehaviour
             mat.color = color;
             GetComponent<Renderer>().material = mat;
 
-            if (NetworkManager.Instance.ownId-1 == id)
+            if (NetworkManager.Instance.ownId == id)
             {
                 mainPlayer.SetActive(true);
             }

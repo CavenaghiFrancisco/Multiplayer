@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Runtime.Serialization.Formatters.Binary;
 using UnityEngine;
@@ -44,7 +45,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
     public GameObject player;
     
-    public List<GameObject> players;
+    public Dictionary<int,GameObject> players = new Dictionary<int, GameObject>();
 
     public int TimeOut = 30;
 
@@ -53,22 +54,21 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
     private UdpConnection connection;
 
-    private readonly Dictionary<int, Client> clients = new Dictionary<int, Client>();
+    private Dictionary<int, Client> clients = new Dictionary<int, Client>();
     private readonly Dictionary<IPEndPoint, int> ipToId = new Dictionary<IPEndPoint, int>();
 
     public Dictionary<Client, Dictionary<MessageType, int>> clientsMessages = new Dictionary<Client, Dictionary<MessageType, int>>();
     
 
     public int clientId = 0; // This id should be generated during first handshake
-
     public int ownId;
 
-    public bool ownIdAssigned;
+    public bool ownIdAssigned = false;
 
     private void Start()
     {
     #if UNITY_SERVER
-        StartServer(9000);
+        StartServer(10111);
     #endif
     }
 
@@ -77,8 +77,6 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         isServer = true;
         this.port = port;
         connection = new UdpConnection(port, this);
-
-        ownId = clientId;
     }
 
     public void StartClient(IPAddress ip, int port)
@@ -119,11 +117,10 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         clientsMessages.Add(client, new Dictionary<MessageType, int>());
         clientsMessages[client].Add(MessageType.Position, 0);
         clientsMessages[client].Add(MessageType.Console, 0);
+        clientsMessages[client].Add(MessageType.Disconnect, 0);
 
 
         clientId++;
-
-
 
         if (isServer)
         {
@@ -155,7 +152,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 if (!isServer && ownId != BitConverter.ToInt32(data, 4))
                 {
                     instance = BitConverter.ToInt32(data, 8);
-                    id = BitConverter.ToInt32(data, 4) - 1;
+                    id = BitConverter.ToInt32(data, 4);
                     if (instance > clientsMessages[clients[id]][MessageType.Position])
                     {
                         clientsMessages[clients[id]][MessageType.Position] = instance;
@@ -169,14 +166,14 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 break;
             case MessageType.Console:
                 instance = BitConverter.ToInt32(data, 8);
-                id = BitConverter.ToInt32(data, 4) - 1;
+                id = BitConverter.ToInt32(data, 4);
                 if (!isServer && ownId != BitConverter.ToInt32(data, 4))
                 {
                     if (instance > clientsMessages[clients[id]][MessageType.Console])
                     {
                         NetString g = new NetString("");
                         clientsMessages[clients[id]][MessageType.Console] = instance;
-                        OnReceiveConsoleMessage("Cliente-ID-" + (id+1) + ":" + g.Deserialize(data), id+1);
+                        OnReceiveConsoleMessage("Cliente-ID-" + (id) + ":" + g.Deserialize(data), id);
                     }
                     else
                     {
@@ -192,33 +189,59 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 if (!ownIdAssigned)
                 {
                     ownIdAssigned = true;
-                    ownId = new NetPlayersList().Deserialize(data)[new NetPlayersList().Deserialize(data).Count-1].id + 1;
+                    ownId = new NetPlayersList().Deserialize(data)[new NetPlayersList().Deserialize(data).Keys.Last()].id;
                 }
-                foreach (KeyValuePair<int, Client> kvp in new NetPlayersList().Deserialize(data))
+                clients = new NetPlayersList().Deserialize(data);
+                if (!isServer)
                 {
-                    int count = 0;
-                    foreach (GameObject player in players)
+                    foreach (KeyValuePair<int, Client> kvp in new NetPlayersList().Deserialize(data))
                     {
-                        if (player.GetComponent<Player>().ID != kvp.Value.id)
+                        int count = 0;
+                        foreach (KeyValuePair<int, GameObject> player in players)
                         {
-                            count++;
+                            if (player.Value.GetComponent<Player>().ID != kvp.Value.id)
+                            {
+                                count++;
+                            }
+                        }
+                        if (count == players.Count)
+                        {
+                            if (!clients.ContainsKey(kvp.Value.id))
+                            {
+                                clients.Add(kvp.Value.id, kvp.Value);
+                            }
+                            Player newPlayer = Instantiate(player, transform.position, Quaternion.identity).GetComponent<Player>();
+
+                            newPlayer.ID = kvp.Value.id;
+
+                            players.Add(newPlayer.ID, newPlayer.gameObject);
+
+                            clientsMessages.Add(kvp.Value, new Dictionary<MessageType, int>());
+                            clientsMessages[kvp.Value].Add(MessageType.Position, 0);
+                            clientsMessages[kvp.Value].Add(MessageType.Console, 0);
+                            clientsMessages[kvp.Value].Add(MessageType.Disconnect, 0);
                         }
                     }
-                    if (count == players.Count)
+                }
+                break;
+            case MessageType.Disconnect:
+                instance = BitConverter.ToInt32(data, 8);
+                id = BitConverter.ToInt32(data, 4);
+                if (ownId != BitConverter.ToInt32(data, 4))
+                { 
+                    if (!isServer)
                     {
-                        if (!clients.ContainsKey(kvp.Value.id))
-                        {
-                            clients.Add(kvp.Value.id, kvp.Value);
-                        }
-                        Player newPlayer = Instantiate(player,transform.position,Quaternion.identity).GetComponent<Player>();
-
-                        newPlayer.ID = kvp.Value.id;
-
-                        players.Add(newPlayer.gameObject);
-
-                        clientsMessages.Add(kvp.Value, new Dictionary<MessageType, int>());
-                        clientsMessages[kvp.Value].Add(MessageType.Position, 0);
-                        clientsMessages[kvp.Value].Add(MessageType.Console, 0);
+                        Destroy(NetworkManager.Instance.players[id]);
+                    }
+                    clients.Remove(id);
+                    players.Remove(id);
+                    if(isServer)
+                    {
+                        Broadcast(new NetPlayersList(clients).Serialize());
+                    }
+                    else
+                    {
+                        SendToServer(new NetPlayersList(clients));
                     }
                 }
                 break;
