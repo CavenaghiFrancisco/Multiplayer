@@ -2,17 +2,31 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class TimerOut : MonoBehaviour
+public class TimerOut
 {
-    // Start is called before the first frame update
-    void Start()
+    private float timer = 0;
+    private float timeOutMax = 4;
+    
+    public float Timer
     {
-        
+        get { return timer; }
     }
 
-    // Update is called once per frame
-    void Update()
+    public void UpdateTimer()
     {
-        
+        timer += Time.deltaTime;
     }
+
+    public void ResetTimer()
+    {
+        Debug.Log("Reset");
+        timer = 0;
+    }
+
+    public bool IsTimeOut()
+    {
+        return timer > timeOutMax;
+    }
+
+
 }

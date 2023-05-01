@@ -12,7 +12,8 @@ public enum MessageType
     Console = 0,
     Position = 1,
     PlayerList = 2,
-    Disconnect = 3
+    Disconnect = 3,
+    StayAlive = 4
 }
 
 public interface IMessage<T>
@@ -236,3 +237,35 @@ public class NetDisconnect : IMessage<string>
     }
 }
 
+public class NetStayAlive : IMessage<string>
+{
+    int id = NetworkManager.Instance.ownId;
+    String data;
+
+    public NetStayAlive() { }
+
+    public NetStayAlive(String data)
+    {
+        this.data = data;
+    }
+
+    public String Deserialize(byte[] message)
+    {
+        return "";
+    }
+
+    public MessageType GetMessageType()
+    {
+        return MessageType.StayAlive;
+    }
+
+    public byte[] Serialize()
+    {
+        List<byte> outData = new List<byte>();
+
+        outData.AddRange(BitConverter.GetBytes((int)GetMessageType()));
+        outData.AddRange(BitConverter.GetBytes(id));
+
+        return outData.ToArray();
+    }
+}

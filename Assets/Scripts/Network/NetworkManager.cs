@@ -54,7 +54,10 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
     private UdpConnection connection;
 
+    TimerOut serverTimer;
+
     private Dictionary<int, Client> clients = new Dictionary<int, Client>();
+    private Dictionary<int, TimerOut> clientsTimer = new Dictionary<int, TimerOut>();
     private readonly Dictionary<IPEndPoint, int> ipToId = new Dictionary<IPEndPoint, int>();
 
     public Dictionary<Client, Dictionary<MessageType, int>> clientsMessages = new Dictionary<Client, Dictionary<MessageType, int>>();
@@ -83,6 +86,8 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     {
         isServer = false;
 
+        serverTimer = new TimerOut();
+
         this.port = port;
         this.ipAddress = ip;
 
@@ -94,7 +99,46 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     }
 
 
+    private void Update()
+    {
+        if (isServer)
+        {
+            if(connection != null)
+            {
+                Broadcast(new NetStayAlive().Serialize());
+                foreach (KeyValuePair<int, TimerOut> kvp in clientsTimer)
+                {
+                    kvp.Value.UpdateTimer();
+                    if (kvp.Value.IsTimeOut())
+                    {
+                        clients.Remove(kvp.Key);
+                        players.Remove(kvp.Key);
+                        clientsTimer.Remove(kvp.Key);
+                        Debug.Log("Se cayo el jugador " + kvp.Key);
+                        break;
+                    }
+                }
+            }
+            
+        }
+        else
+        {
+            if (ownIdAssigned)
+            {
+                SendToServer(new NetStayAlive());
+                serverTimer.UpdateTimer();
+                if (serverTimer.IsTimeOut())
+                {
+                    Debug.Log("Se cayo el server");
+                }
+            }
+        }
 
+
+
+        if (connection != null)
+            connection.FlushReceiveData();
+    }
 
 
     private void AddClient(IPEndPoint ip)
@@ -112,6 +156,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         if (!clients.ContainsKey(clientId))
         {
             clients.Add(clientId, client);
+            clientsTimer.Add(clientId, new TimerOut());
         }
 
         clientsMessages.Add(client, new Dictionary<MessageType, int>());
@@ -237,12 +282,26 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                     players.Remove(id);
                     if(isServer)
                     {
+                        clientsTimer.Remove(id);
                         Broadcast(new NetPlayersList(clients).Serialize());
                     }
                     else
                     {
                         SendToServer(new NetPlayersList(clients));
                     }
+                }
+                break;
+            case MessageType.StayAlive:
+                id = BitConverter.ToInt32(data, 4);
+                if (isServer)
+                {
+                    clientsTimer[id].ResetTimer();
+                    Broadcast(data);
+                }
+                else
+                {
+                    serverTimer.ResetTimer();
+                    SendToServer(new NetStayAlive());
                 }
                 break;
             default:
@@ -267,12 +326,5 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 connection.Send(data, iterator.Current.Value.ipEndPoint);
             }
         }
-    }
-
-    private void Update()
-    {
-        // Flush the data in main thread
-        if (connection != null)
-            connection.FlushReceiveData();        
     }
 }
