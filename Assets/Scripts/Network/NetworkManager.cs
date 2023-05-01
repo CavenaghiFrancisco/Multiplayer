@@ -51,6 +51,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
     public Action<byte[], IPEndPoint> OnReceiveEvent;
     public Action<string,int> OnReceiveConsoleMessage;
+    public Action<float> OnPackageTimerUpdate;
 
     private UdpConnection connection;
 
@@ -67,6 +68,8 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     public int ownId;
 
     public bool ownIdAssigned = false;
+
+    float packageTimer = 0;
 
     private void Start()
     {
@@ -125,6 +128,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         {
             if (ownIdAssigned)
             {
+                packageTimer += Time.deltaTime;
                 SendToServer(new NetStayAlive());
                 serverTimer.UpdateTimer();
                 if (serverTimer.IsTimeOut())
@@ -293,6 +297,8 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 break;
             case MessageType.StayAlive:
                 id = BitConverter.ToInt32(data, 4);
+
+                
                 if (isServer)
                 {
                     clientsTimer[id].ResetTimer();
@@ -300,6 +306,8 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 }
                 else
                 {
+                    OnPackageTimerUpdate(packageTimer);
+                    packageTimer = 0;
                     serverTimer.ResetTimer();
                     SendToServer(new NetStayAlive());
                 }
