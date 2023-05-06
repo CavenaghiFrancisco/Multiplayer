@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &1131049621544164260
+--- !u!1 &5187794962341241868
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1131049621544164257}
-  - component: {fileID: 1131049621544164262}
-  - component: {fileID: 1131049621544164263}
+  - component: {fileID: 5187794962341241865}
+  - component: {fileID: 5187794962341241870}
+  - component: {fileID: 5187794962341241871}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -18,13 +18,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &1131049621544164257
+--- !u!4 &5187794962341241865
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1131049621544164260}
+  m_GameObject: {fileID: 5187794962341241868}
   m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
   m_LocalPosition: {x: 648.8062, y: 459.9, z: -80}
   m_LocalScale: {x: 1, y: 1, z: 1}
@@ -33,13 +33,13 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
---- !u!20 &1131049621544164262
+--- !u!20 &5187794962341241870
 Camera:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1131049621544164260}
+  m_GameObject: {fileID: 5187794962341241868}
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 1
@@ -76,11 +76,11 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!81 &1131049621544164263
+--- !u!81 &5187794962341241871
 AudioListener:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1131049621544164260}
+  m_GameObject: {fileID: 5187794962341241868}
   m_Enabled: 1

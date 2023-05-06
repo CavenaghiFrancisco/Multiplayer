@@ -75,11 +75,12 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
     float packageTimer = 0;
 
-    private void Start()
+    public void Start()
     {
-    #if UNITY_SERVER
+#if UNITY_SERVER
+        Debug.Log("Hola");
         StartServer(10111);
-    #endif
+#endif
     }
 
     public void StartServer(int port)
@@ -250,6 +251,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 {
                     if(clients.Count < limitPlayers)
                     {
+                        Debug.Log("Recibi el handshake");       
                         AddClient(ip);
                     }
                     else
