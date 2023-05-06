@@ -4,6 +4,11 @@ using UnityEngine;
 
 public class TimerOut
 {
+    public TimerOut(float timeOut)
+    {
+        timeOutMax = timeOut;
+    }
+
     private float timer = 0;
     private float timeOutMax = 4;
     
@@ -19,7 +24,6 @@ public class TimerOut
 
     public void ResetTimer()
     {
-        Debug.Log("Reset");
         timer = 0;
     }
 

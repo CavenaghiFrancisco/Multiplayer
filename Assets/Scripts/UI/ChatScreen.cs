@@ -24,7 +24,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
     {
         anim = messagesGO.GetComponent<Animator>();
         NetworkManager.Instance.OnReceiveConsoleMessage += UpdateMessage;
-        NetworkManager.Instance.OnPackageTimerUpdate += UpdateLag;
+        NetworkManager.Instance.OnPackageTimerUpdate += UpdatePing;
 
         inputMessage.onEndEdit.AddListener(OnEndEdit);
 
@@ -46,7 +46,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 
             if(timerLag > 1)
             {
-                UpdateLag(timerLag * 20,true);
+                UpdatePing(timerLag * 20,true);
             }
 
             if (!NetworkManager.Instance.isServer)
@@ -146,19 +146,19 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
         
     }
 
-    private void UpdateLag(float lag)
+    private void UpdatePing(double latency)
     {
         timerLag = 0;
         Color color = Color.white;
-        if (lag <= 50)
+        if (latency <= 50)
         {
             color = Color.green;
         }
-        else if (lag > 50 && lag <= 150 )
+        else if (latency > 50 && latency <= 150 )
         {
             color = Color.yellow;
         }
-        else if (lag > 150)
+        else if (latency > 150)
         {
             color = Color.red;
         }
@@ -166,25 +166,25 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
         int g = (int)(color.g * 255f);
         int b = (int)(color.b * 255f);
         int a = (int)(color.a * 255f);
-        pingText.text = "<color=" + string.Format("#{0:X2}{1:X2}{2:X2}{3:X2}", r, g, b, a) + ">PING: " + lag.ToString() + "ms </color>";
+        pingText.text = "<color=" + string.Format("#{0:X2}{1:X2}{2:X2}{3:X2}", r, g, b, a) + ">PING: " + latency.ToString("0") + "ms </color>";
     }
 
-    private void UpdateLag(float lag, bool TimeOut)
+    private void UpdatePing(float latency, bool TimeOut)
     {
         if (!TimeOut)
         {
             timerLag = 0;
         }
         Color color = Color.white;
-        if (lag <= 50)
+        if (latency <= 50)
         {
             color = Color.green;
         }
-        else if (lag > 50 && lag <= 150)
+        else if (latency > 50 && latency <= 150)
         {
             color = Color.yellow;
         }
-        else if (lag > 150)
+        else if (latency > 150)
         {
             color = Color.red;
         }
@@ -192,7 +192,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
         int g = (int)(color.g * 255f);
         int b = (int)(color.b * 255f);
         int a = (int)(color.a * 255f);
-        pingText.text = "<color=" + string.Format("#{0:X2}{1:X2}{2:X2}{3:X2}", r, g, b, a) + ">PING: " + lag + "ms </color>";
+        pingText.text = "<color=" + string.Format("#{0:X2}{1:X2}{2:X2}{3:X2}", r, g, b, a) + ">PING: " + latency.ToString("0") + "ms </color>";
     }
 
     private void OnEndEdit(string str)
