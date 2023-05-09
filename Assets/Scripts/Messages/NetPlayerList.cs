@@ -6,6 +6,7 @@ using UnityEngine;
 
 public class NetPlayersList : IMessage<Dictionary<int, Client>>
 {
+    int id = NetworkManager.Instance.ownId;
     Dictionary<int, Client> data;
 
     public NetPlayersList() { }
@@ -25,6 +26,7 @@ public class NetPlayersList : IMessage<Dictionary<int, Client>>
         BinaryFormatter formatter = new BinaryFormatter();
         MemoryStream stream = new MemoryStream();
         formatter.Serialize(stream, (int)GetMessageType());
+        formatter.Serialize(stream, id);
         formatter.Serialize(stream, data);
         formatter.Serialize(stream, (int)stream.Length * 3);
         stream.Close();
@@ -34,7 +36,7 @@ public class NetPlayersList : IMessage<Dictionary<int, Client>>
 
     public System.Collections.Generic.Dictionary<int, Client> Deserialize(byte[] message)
     {
-        using (MemoryStream stream = new MemoryStream(message, 54, message.Length - 108))
+        using (MemoryStream stream = new MemoryStream(message, 108, message.Length - 162))
         {
             BinaryFormatter formatter = new BinaryFormatter();
             data = (Dictionary<int,Client>)formatter.Deserialize(stream);

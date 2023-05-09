@@ -78,6 +78,7 @@ public class UdpConnection
     public void Send(byte[] data)
     {
         connection.Send(data, data.Length);
+        PackageManager.AddMessageSend(data);
     }
 
     public void Send(byte[] data, IPEndPoint ipEndpoint)

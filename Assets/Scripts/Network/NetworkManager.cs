@@ -44,13 +44,13 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     }
 
     public GameObject player;
-    
-    public Dictionary<int,GameObject> players = new Dictionary<int, GameObject>();
+
+    public Dictionary<int, GameObject> players = new Dictionary<int, GameObject>();
 
     public int TimeOut = 30;
 
     public Action<byte[], IPEndPoint> OnReceiveEvent;
-    public Action<string,int> OnReceiveConsoleMessage;
+    public Action<string, int> OnReceiveConsoleMessage;
     public Action<double> OnPackageTimerUpdate;
 
     private UdpConnection connection;
@@ -61,10 +61,12 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
     private Dictionary<int, Client> clients = new Dictionary<int, Client>();
     private Dictionary<int, TimerOut> clientsTimer = new Dictionary<int, TimerOut>();
-    private Dictionary<int, double> clientsLatency = new Dictionary<int, double>();
+    public Dictionary<int, double> clientsLatency = new Dictionary<int, double>();
     private readonly Dictionary<IPEndPoint, int> ipToId = new Dictionary<IPEndPoint, int>();
 
     public Dictionary<Client, Dictionary<MessageType, int>> clientsMessages = new Dictionary<Client, Dictionary<MessageType, int>>();
+
+    public double latency = 0;
 
     DateTime lastTime = default;
 
@@ -79,12 +81,13 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     {
 #if UNITY_SERVER
         Debug.Log("Hola");
-        StartServer(10111);
+        StartServer(10100);
 #endif
     }
 
     public void StartServer(int port)
     {
+        ownId = -1;
         isServer = true;
         this.port = port;
         connection = new UdpConnection(port, this);
@@ -112,9 +115,11 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         if (connection != null)
             connection.FlushReceiveData();
 
+
+
         if (isServer)
         {
-            if(connection != null)
+            if (connection != null)
             {
                 foreach (KeyValuePair<int, TimerOut> kvp in clientsTimer)
                 {
@@ -128,8 +133,11 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                         break;
                     }
                 }
+#if UNITY_SERVER
+                PackageManager.ServerCheckTimers();
+#endif
             }
-          
+
         }
         else
         {
@@ -141,10 +149,11 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 {
                     Debug.Log("Se cayo el server");
                 }
+                PackageManager.CheckTimers();
             }
         }
 
-        
+
     }
 
 
@@ -181,10 +190,9 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
             Debug.Log("Enviando lista");
             Broadcast(new NetPlayersList(clients).Serialize());
             Broadcast(new NetStayAlive(DateTime.Now, 0).Serialize());
-            //Broadcast(new NetPlayersList(clients).Serialize());
-
+            Broadcast(new NetPlayersList(clients).Serialize());
         }
-        //}
+
     }
 
     private void RemoveClient(IPEndPoint ip)
@@ -199,13 +207,10 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     public void OnReceiveData(byte[] data, IPEndPoint ip)
     {
         int messageType = PackageManager.CheckMessage(data);
-        if(messageType == 4 || messageType == 2)
+        if (!PackageManager.CheckTail(data))
         {
-            if (!PackageManager.CheckTail(data))
-            {
-                Debug.Log("Se rompio");
-                return;
-            }
+            Debug.Log("Se rompio");
+            return;
         }
         int instance;
         int id;
@@ -228,6 +233,10 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                         Debug.Log("Se perdio el mensaje" + instance);
                     }
                 }
+                if (isServer)
+                {
+                    Broadcast(data);
+                }
                 break;
             case MessageType.Console:
                 instance = BitConverter.ToInt32(data, 8);
@@ -245,14 +254,20 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                         Debug.Log("Ser perdio el mensaje de consola" + instance);
                     }
                 }
+                if (isServer)
+                {
+                    Broadcast(data);
+                }
                 break;
             case MessageType.HandShake:
                 if (isServer)
                 {
-                    if(clients.Count < limitPlayers)
+                    if (clients.Count < limitPlayers)
                     {
-                        Debug.Log("Recibi el handshake");       
+                        Debug.Log("Recibi el handshake");
                         AddClient(ip);
+                        Broadcast(data);
+                        Broadcast(new NetPlayersList(clients).Serialize());
                     }
                     else
                     {
@@ -262,7 +277,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 }
                 else
                 {
-                  AddClient(ip);
+                    AddClient(ip);
                 }
                 break;
             case MessageType.PlayerList:
@@ -275,58 +290,73 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 clients = new NetPlayersList().Deserialize(data);
                 if (!isServer)
                 {
-                    foreach (KeyValuePair<int, Client> kvp in new NetPlayersList().Deserialize(data))
-                    {
-                        int count = 0;
-                        foreach (KeyValuePair<int, GameObject> player in players)
+                    //if (PackageManager.GetID(data) != ownId)
+                    //{
+                        Debug.Log(PackageManager.GetID(data) + "Mando la playlist");
+                        foreach (KeyValuePair<int, Client> kvp in new NetPlayersList().Deserialize(data))
                         {
-                            if (player.Value.GetComponent<Player>().ID != kvp.Value.id)
+                            int count = 0;
+                            foreach (KeyValuePair<int, GameObject> player in players)
                             {
-                                count++;
+                                if (player.Value.GetComponent<Player>().ID != kvp.Value.id)
+                                {
+                                    count++;
+                                }
+                            }
+                            if (count == players.Count)
+                            {
+                                if (!clients.ContainsKey(kvp.Value.id))
+                                {
+                                    clients.Add(kvp.Value.id, kvp.Value);
+                                }
+                                Player newPlayer = Instantiate(player, transform.position, Quaternion.identity).GetComponent<Player>();
+
+                                newPlayer.ID = kvp.Value.id;
+
+                                players.Add(newPlayer.ID, newPlayer.gameObject);
+
+                                clientsMessages.Add(kvp.Value, new Dictionary<MessageType, int>());
+                                clientsMessages[kvp.Value].Add(MessageType.Position, 0);
+                                clientsMessages[kvp.Value].Add(MessageType.Console, 0);
+                                clientsMessages[kvp.Value].Add(MessageType.Disconnect, 0);
                             }
                         }
-                        if (count == players.Count)
-                        {
-                            if (!clients.ContainsKey(kvp.Value.id))
-                            {
-                                clients.Add(kvp.Value.id, kvp.Value);
-                            }
-                            Player newPlayer = Instantiate(player, transform.position, Quaternion.identity).GetComponent<Player>();
-
-                            newPlayer.ID = kvp.Value.id;
-
-                            players.Add(newPlayer.ID, newPlayer.gameObject);
-
-                            clientsMessages.Add(kvp.Value, new Dictionary<MessageType, int>());
-                            clientsMessages[kvp.Value].Add(MessageType.Position, 0);
-                            clientsMessages[kvp.Value].Add(MessageType.Console, 0);
-                            clientsMessages[kvp.Value].Add(MessageType.Disconnect, 0);
-                        }
-                    }
+                    //}
+                }
+                else
+                {
+                    Broadcast(new NetPlayersList(clients).Serialize());
                 }
                 break;
             case MessageType.Disconnect:
                 instance = BitConverter.ToInt32(data, 8);
                 id = BitConverter.ToInt32(data, 4);
                 Debug.Log("Se desconecto el jugador " + id);
-                if (ownId != BitConverter.ToInt32(data, 4))
-                { 
-                    if (!isServer)
-                    {
-                        Destroy(NetworkManager.Instance.players[id]);
-                    }
-                    clients.Remove(id);
-                    players.Remove(id);
-                    if(isServer)
-                    {
-                        clientsTimer.Remove(id);
-                        clientsLatency.Remove(id);
-                        Broadcast(new NetPlayersList(clients).Serialize());
-                    }
-                    else
-                    {
-                        SendToServer(new NetPlayersList(clients));
-                    }
+                if (!isServer)
+                {
+                    Destroy(NetworkManager.Instance.players[id]);
+                }
+                else
+                {
+                    //Broadcast(data);
+                }
+                clientsMessages.Remove(clients[id]);
+                clients.Remove(id);
+                players.Remove(id);
+                clientsTimer.Remove(id);
+                clientsLatency.Remove(id);
+                if (isServer)
+                {
+#if UNITY_SERVER
+                        PackageManager.lastMessagesReceivedPerClient.Remove(id);
+                        PackageManager.messageTimersPerClient.Remove(id);
+#endif
+                    Broadcast(data);
+                    Broadcast(new NetPlayersList(clients).Serialize());
+                }
+                else
+                {
+                    SendToServer(new NetPlayersList(clients));
                 }
                 break;
             case MessageType.StayAlive:
@@ -337,20 +367,20 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                     id = (int)formatter.Deserialize(stream);
                 }
 
-                (DateTime,double) dataStayAlive= new NetStayAlive().Deserialize(data);
+                (DateTime, double) dataStayAlive = new NetStayAlive().Deserialize(data);
 
-                double latency = 0;
+                latency = 0;
 
-                if(lastTime == default)
+                if (lastTime == default)
                 {
                     lastTime = dataStayAlive.Item1;
                 }
                 else
                 {
-                    if(lastTime < dataStayAlive.Item1) 
+                    if (lastTime < dataStayAlive.Item1)
                     {
                         latency = (dataStayAlive.Item1 - lastTime).TotalMilliseconds;
-                        if(!isServer) 
+                        if (!isServer)
                             OnPackageTimerUpdate(latency);
                         lastTime = dataStayAlive.Item1;
                     }
@@ -359,12 +389,12 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 {
                     clientsTimer[id].ResetTimer();
                     clientsLatency[id] = latency;
-                    Broadcast(new NetStayAlive(DateTime.Now,latency).Serialize(), id);
+                    Broadcast(new NetStayAlive(DateTime.Now, latency).Serialize(), id);
                 }
                 else
                 {
                     serverTimer.ResetTimer();
-                    SendToServer(new NetStayAlive(DateTime.Now,latency));
+                    SendToServer(new NetStayAlive(DateTime.Now, latency));
                 }
                 break;
             case MessageType.Request:
@@ -377,12 +407,6 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 break;
             default:
                 break;
-        }
-
-        if(messageType != (int)MessageType.StayAlive/* || (clients.Count < limitPlayers && messageType == (int)MessageType.HandShake)*/)
-        {
-            if (OnReceiveEvent != null)
-                OnReceiveEvent.Invoke(data, ip);
         }
     }
 
@@ -400,13 +424,16 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 connection.Send(data, iterator.Current.Value.ipEndPoint);
             }
         }
+#if UNITY_SERVER
+        PackageManager.ServerAddMessageSend(data);
+#endif
     }
 
     public void Broadcast(byte[] data, int id)
     {
-        foreach(KeyValuePair<int,Client> client in clients)
+        foreach (KeyValuePair<int, Client> client in clients)
         {
-            if(client.Key == id)
+            if (client.Key == id)
             {
                 connection.Send(data, client.Value.ipEndPoint);
             }

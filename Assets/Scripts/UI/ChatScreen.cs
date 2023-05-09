@@ -30,7 +30,6 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 
         this.gameObject.SetActive(false);
 
-        NetworkManager.Instance.OnReceiveEvent += OnReceiveDataEvent;
     }
 
     private void OnApplicationQuit()
@@ -120,14 +119,6 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
        
     }
 
-    private void OnReceiveDataEvent(byte[] data, IPEndPoint ep)
-    {
-        if (NetworkManager.Instance.isServer)
-        {
-            NetworkManager.Instance.Broadcast(data);
-        }
-    }
-
     private void UpdateMessage(string data, int id)
     {   
         Color color = NetworkManager.Instance.players[id].GetComponent<Player>().color;
@@ -166,7 +157,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
         int g = (int)(color.g * 255f);
         int b = (int)(color.b * 255f);
         int a = (int)(color.a * 255f);
-        pingText.text = "<color=" + string.Format("#{0:X2}{1:X2}{2:X2}{3:X2}", r, g, b, a) + ">PING: " + latency.ToString("0") + "ms </color>";
+        pingText.text = "<color=" + string.Format("#{0:X2}{1:X2}{2:X2}{3:X2}", r, g, b, a) + ">PING: " + Mathf.Clamp((float)latency,0,999).ToString("0") + "ms </color>";
     }
 
     private void UpdatePing(float latency, bool TimeOut)
@@ -192,7 +183,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
         int g = (int)(color.g * 255f);
         int b = (int)(color.b * 255f);
         int a = (int)(color.a * 255f);
-        pingText.text = "<color=" + string.Format("#{0:X2}{1:X2}{2:X2}{3:X2}", r, g, b, a) + ">PING: " + latency.ToString("0") + "ms </color>";
+        pingText.text = "<color=" + string.Format("#{0:X2}{1:X2}{2:X2}{3:X2}", r, g, b, a) + ">PING: " + Mathf.Clamp((float)latency, 0, 999).ToString("0") + "ms </color>";
     }
 
     private void OnEndEdit(string str)

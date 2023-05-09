@@ -2,44 +2,39 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization.Formatters.Binary;
 using UnityEngine;
 
 public class PackageManager
 {
     private static List<byte[]> lastStringMessagesReceived = new List<byte[]>();
-    private static List<byte[]> lastHandShakeMessagesReceived = new List<byte[]>();
     private static List<byte[]> lastDisconnectMessagesReceived = new List<byte[]>();
     private static List<byte[]> lastPlayerListMessagesReceived = new List<byte[]>();
 
     private static List<byte[]> lastStringMessagesSend = new List<byte[]>();
-    private static List<byte[]> lastHandShakeMessagesSend = new List<byte[]>();
     private static List<byte[]> lastDisconnectMessagesSend = new List<byte[]>();
     private static List<byte[]> lastPlayerListMessagesSend = new List<byte[]>();
 
+#if UNITY_SERVER
+    public static Dictionary<int, Dictionary<MessageType, List<byte[]>>> lastMessagesReceivedPerClient = new Dictionary<int, Dictionary<MessageType, List<byte[]>>>();
+    private static Dictionary<MessageType, List<byte[]>> lastMessagesSendServer = new Dictionary<MessageType, List<byte[]>>();
+    public static Dictionary<int, Dictionary<TimerOut, byte[]>> messageTimersPerClient = new Dictionary<int, Dictionary<TimerOut, byte[]>>();
+#endif
+
     private static Dictionary<TimerOut, byte[]> messageTimers = new Dictionary<TimerOut, byte[]>();
 
-    private static float latency;
-
-
-    public static float Latency
-    {
-        get { return latency; }
-        set { latency = value; }
-    }
-
+    const int timeOffset = 7;
 
     public static void RequestMessage(MessageType messageType, byte[] data)
     {
         switch (messageType)
         {
             case MessageType.Console:
-                if(lastStringMessagesReceived.Count > 0 && data == lastStringMessagesReceived[lastStringMessagesReceived .Count- 1])
+                if (lastStringMessagesReceived.Count > 0 && data == lastStringMessagesReceived[lastStringMessagesReceived.Count - 1])
                 {
-                    
+
                 }
-                break;
-            case MessageType.HandShake:
                 break;
             case MessageType.Disconnect:
                 break;
@@ -69,6 +64,25 @@ public class PackageManager
         return messageType;
     }
 
+    public static int GetID(byte[] data)
+    {
+        int id = -20;
+        try
+        {
+            using (MemoryStream stream = new MemoryStream(data))
+            {
+                BinaryFormatter formatter = new BinaryFormatter();
+                stream.Position = 54;
+                id = (int)formatter.Deserialize(stream);
+            }
+        }
+        catch
+        {
+            id = BitConverter.ToInt32(data, 4);
+        }
+        return id;
+    }
+
     public static bool CheckTail(byte[] data)
     {
         int dataLength = data.Length;
@@ -77,7 +91,7 @@ public class PackageManager
             using (MemoryStream stream = new MemoryStream(data, data.Length - 54, 54))
             {
                 BinaryFormatter formatter = new BinaryFormatter();
-                return (dataLength - 54) == (int)formatter.Deserialize(stream)/3;
+                return (dataLength - 54) == (int)formatter.Deserialize(stream) / 3;
             }
         }
         catch
@@ -93,23 +107,52 @@ public class PackageManager
         {
             case MessageType.Console:
                 lastStringMessagesReceived.Add(data);
-                break;
-            case MessageType.HandShake:
-                lastHandShakeMessagesReceived.Add(data);
+                messageTimers.Add(new TimerOut((float)NetworkManager.Instance.latency / 1000.0f * timeOffset), data);
+                Debug.Log("Se agrego uno de consola");
                 break;
             case MessageType.Disconnect:
                 lastDisconnectMessagesReceived.Add(data);
+                messageTimers.Add(new TimerOut((float)NetworkManager.Instance.latency / 1000.0f * timeOffset), data);
                 break;
             case MessageType.PlayerList:
                 lastPlayerListMessagesReceived.Add(data);
+                messageTimers.Add(new TimerOut((float)NetworkManager.Instance.latency / 1000.0f * timeOffset), data);
                 break;
             default:
                 break;
         }
-
-        messageTimers.Add(new TimerOut(latency), data);
-
     }
+
+#if UNITY_SERVER
+    public static void ServerAddMessageReceived(byte[] data)
+    {
+        switch ((MessageType)CheckMessage(data))
+        {
+            case MessageType.Console:
+            case MessageType.Disconnect:
+            case MessageType.PlayerList:
+                int id = GetID(data);
+                if (!lastMessagesReceivedPerClient.ContainsKey(id))
+                {
+                    lastMessagesReceivedPerClient.Add(id, new Dictionary<MessageType, List<byte[]>>());
+                    lastMessagesReceivedPerClient[id].Add(MessageType.Console, lastStringMessagesReceived);
+                    lastMessagesReceivedPerClient[id].Add(MessageType.Disconnect, lastDisconnectMessagesReceived);
+                    lastMessagesReceivedPerClient[id].Add(MessageType.PlayerList, lastPlayerListMessagesReceived);
+                }
+                lastMessagesReceivedPerClient[id][(MessageType)CheckMessage(data)].Add(data);
+
+                if (!messageTimersPerClient.ContainsKey(id))
+                    messageTimersPerClient.Add(id, new Dictionary<TimerOut, byte[]>());
+
+                if (messageTimersPerClient.ContainsKey(id))
+                    messageTimersPerClient[id].Add(new TimerOut((float)NetworkManager.Instance.clientsLatency[id] / 1000.0f * timeOffset), data);
+                break;
+            default:
+                break;
+
+        }
+    }
+#endif
 
     public static void AddMessageSend(byte[] data)
     {
@@ -118,23 +161,59 @@ public class PackageManager
         {
             case MessageType.Console:
                 lastStringMessagesSend.Add(data);
-                break;
-            case MessageType.HandShake:
-                lastHandShakeMessagesSend.Add(data);
+                messageTimers.Add(new TimerOut((float)NetworkManager.Instance.latency / 1000.0f * timeOffset), data);
                 break;
             case MessageType.Disconnect:
                 lastDisconnectMessagesSend.Add(data);
+                messageTimers.Add(new TimerOut((float)NetworkManager.Instance.latency / 1000.0f * timeOffset), data);
                 break;
             case MessageType.PlayerList:
                 lastPlayerListMessagesSend.Add(data);
+                messageTimers.Add(new TimerOut((float)NetworkManager.Instance.latency / 1000.0f * timeOffset), data);
+                break;
+            default:
+                break;
+        }
+    }
+
+#if UNITY_SERVER
+    public static void ServerAddMessageSend(byte[] data)
+    {
+        int id = GetID(data);
+        switch ((MessageType)CheckMessage(data))
+        {
+            case MessageType.Console:
+            case MessageType.Disconnect:
+            case MessageType.PlayerList:
+                if (!lastMessagesSendServer.ContainsKey((MessageType)CheckMessage(data)))
+                {
+                    lastMessagesSendServer.Add((MessageType)CheckMessage(data), new List<byte[]>());
+                }
+                lastMessagesSendServer[(MessageType)CheckMessage(data)].Add(data);
+
+                if (!messageTimersPerClient.ContainsKey(id))
+                    messageTimersPerClient.Add(id, new Dictionary<TimerOut, byte[]>());
+
+                if (messageTimersPerClient.ContainsKey(id))
+                {
+                    if (id == -1)
+                    {
+                        messageTimersPerClient[id].Add(new TimerOut((float)NetworkManager.Instance.clientsLatency.Values.Max() / 1000.0f * timeOffset), data);
+                    }
+                    else
+                    {
+                        if(NetworkManager.Instance.clientsLatency.ContainsKey(id))
+                            messageTimersPerClient[id].Add(new TimerOut((float)NetworkManager.Instance.clientsLatency[id] / 1000.0f * timeOffset), data);
+                    }
+                }
+                    
                 break;
             default:
                 break;
         }
 
-        messageTimers.Add(new TimerOut(latency), data);
-
     }
+#endif
 
     public static void RemoveMessageReceived(byte[] data)
     {
@@ -143,9 +222,6 @@ public class PackageManager
         {
             case MessageType.Console:
                 lastStringMessagesReceived.Remove(data);
-                break;
-            case MessageType.HandShake:
-                lastHandShakeMessagesReceived.Remove(data);
                 break;
             case MessageType.Disconnect:
                 lastDisconnectMessagesReceived.Remove(data);
@@ -158,6 +234,27 @@ public class PackageManager
         }
     }
 
+#if UNITY_SERVER
+    public static void ServerRemoveMessageReceived(byte[] data)
+    {
+        int id = GetID(data);
+        switch ((MessageType)CheckMessage(data))
+        {
+            case MessageType.Console:
+                lastMessagesReceivedPerClient[id][MessageType.Console].Remove(data);
+                break;
+            case MessageType.Disconnect:
+                lastMessagesReceivedPerClient[id][MessageType.Disconnect].Remove(data);
+                break;
+            case MessageType.PlayerList:
+                lastMessagesReceivedPerClient[id][MessageType.PlayerList].Remove(data);
+                break;
+            default:
+                break;
+        }
+    }
+#endif
+
     public static void RemoveMessageSend(byte[] data)
     {
 
@@ -165,9 +262,6 @@ public class PackageManager
         {
             case MessageType.Console:
                 lastStringMessagesSend.Remove(data);
-                break;
-            case MessageType.HandShake:
-                lastHandShakeMessagesSend.Remove(data);
                 break;
             case MessageType.Disconnect:
                 lastDisconnectMessagesSend.Remove(data);
@@ -180,23 +274,75 @@ public class PackageManager
         }
     }
 
+#if UNITY_SERVER
+    public static void ServerRemoveMessageSend(byte[] data)
+    {
+        switch ((MessageType)CheckMessage(data))
+        {
+            case MessageType.Console:
+                lastMessagesSendServer[MessageType.Console].Remove(data);
+                break;
+            case MessageType.Disconnect:
+                lastMessagesSendServer[MessageType.Disconnect].Remove(data);
+                break;
+            case MessageType.PlayerList:
+                lastMessagesSendServer[MessageType.PlayerList].Remove(data);
+                break;
+            default:
+                break;
+        }
+    }
+#endif
+
     public static void CheckTimers()
     {
-        foreach (KeyValuePair < TimerOut,byte[]> keyValuePair in messageTimers)
+        int i = 0;
+        List<byte[]> datas = messageTimers.Values.ToList();
+        foreach (TimerOut timer in messageTimers.Keys.ToList())
         {
-            keyValuePair.Key.UpdateTimer();
-            if (keyValuePair.Key.IsTimeOut())
+            timer.UpdateTimer();
+            if (timer.IsTimeOut())
             {
                 try
                 {
-                    RemoveMessageReceived(keyValuePair.Value);
+                    RemoveMessageReceived(datas[i]);
                 }
                 catch
                 {
-                    RemoveMessageSend(keyValuePair.Value);
+                    RemoveMessageSend(datas[i]);
                 }
-                messageTimers.Remove(keyValuePair.Key);
+                messageTimers.Remove(timer);
+            }
+            i++;
+        }
+    }
+
+#if UNITY_SERVER
+    public static void ServerCheckTimers()
+    {
+        List<Dictionary<TimerOut, byte[]>> dictionaries = messageTimersPerClient.Values.ToList();
+        foreach (Dictionary<TimerOut, byte[]> dictionary in dictionaries)
+        {
+            int i = 0;
+            List<byte[]> datas = dictionary.Values.ToList();
+            foreach (TimerOut timer in dictionary.Keys.ToList())
+            {
+                timer.UpdateTimer();
+                if (timer.IsTimeOut())
+                {
+                    try
+                    {
+                        ServerRemoveMessageReceived(datas[i]);
+                    }
+                    catch
+                    {
+                        ServerRemoveMessageSend(datas[i]);
+                    }
+                    messageTimersPerClient.Remove(GetID(datas[i]));
+                }
+                i++;
             }
         }
     }
+#endif
 }
