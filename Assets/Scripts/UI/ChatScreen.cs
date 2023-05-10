@@ -8,8 +8,10 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 
     public GameObject[] players;
     public GameObject chatPanel;
+    public GameObject chargePanel;
     public Text messages;
     public Text pingText;
+    public Text portText;
     public Text id;
     public Text clientsQuantity;
     public Text messagesQuantityText;
@@ -25,6 +27,7 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
         anim = messagesGO.GetComponent<Animator>();
         NetworkManager.Instance.OnReceiveConsoleMessage += UpdateMessage;
         NetworkManager.Instance.OnPackageTimerUpdate += UpdatePing;
+        NetworkManager.Instance.OnCharge += OnCharge;
 
         inputMessage.onEndEdit.AddListener(OnEndEdit);
 
@@ -48,6 +51,8 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
             {
                 UpdatePing(timerLag * 20,true);
             }
+
+            portText.text = "Port: " + NetworkManager.Instance.port;
 
             if (!NetworkManager.Instance.isServer)
             {
@@ -185,6 +190,11 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
         int b = (int)(color.b * 255f);
         int a = (int)(color.a * 255f);
         pingText.text = "<color=" + string.Format("#{0:X2}{1:X2}{2:X2}{3:X2}", r, g, b, a) + ">PING: " + Mathf.Clamp((float)latency, 0, 999).ToString("0") + "ms </color>";
+    }
+
+    private void OnCharge()
+    {
+        chargePanel.SetActive(false);
     }
 
     private void OnEndEdit(string str)

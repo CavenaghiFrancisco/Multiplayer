@@ -26,19 +26,41 @@ public class PackageManager
 
     const int timeOffset = 7;
 
-    public static void RequestMessage(MessageType messageType, byte[] data)
+#if UNITY_SERVER
+    public static void ResendMessageServer(MessageType messageType, byte[] data)
+    {
+        if(lastMessagesSendServer.Count > 0 && lastMessagesSendServer[messageType].Count > 0)
+        {
+            byte[] newData = lastMessagesSendServer[messageType][lastMessagesSendServer.Count - 1];
+            NetworkManager.Instance.Broadcast(newData, GetID(data));
+        }
+    }
+#endif  
+
+    public static void ResendMessage(MessageType messageType, byte[] data)
     {
         switch (messageType)
         {
             case MessageType.Console:
-                if (lastStringMessagesReceived.Count > 0 && data == lastStringMessagesReceived[lastStringMessagesReceived.Count - 1])
+                if (lastStringMessagesSend.Count > 0)
                 {
-
+                    byte[] newData = lastStringMessagesSend[lastStringMessagesSend.Count - 1];
+                    NetworkManager.Instance.SendToServer(newData);
                 }
                 break;
             case MessageType.Disconnect:
+                if (lastDisconnectMessagesSend.Count > 0)
+                {
+                    byte[] newData = lastDisconnectMessagesSend[lastDisconnectMessagesSend.Count - 1];
+                    NetworkManager.Instance.SendToServer(newData);
+                }
                 break;
             case MessageType.PlayerList:
+                if (lastPlayerListMessagesSend.Count > 0)
+                {
+                    byte[] newData = lastPlayerListMessagesSend[lastPlayerListMessagesSend.Count - 1];
+                    NetworkManager.Instance.SendToServer(newData);
+                }
                 break;
             default:
                 break;

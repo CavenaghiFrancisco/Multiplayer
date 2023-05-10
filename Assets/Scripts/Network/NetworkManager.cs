@@ -54,12 +54,13 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     public Action<byte[], IPEndPoint> OnReceiveEvent;
     public Action<string, int> OnReceiveConsoleMessage;
     public Action<double> OnPackageTimerUpdate;
+    public Action OnCharge;
 
     private UdpConnection connection;
 
     TimerOut serverTimer;
 
-    const int limitPlayers = 2;
+    const int limitPlayers = 3;
 
     public Dictionary<int, Client> clients = new Dictionary<int, Client>();
     private Dictionary<int, TimerOut> clientsTimer = new Dictionary<int, TimerOut>();
@@ -69,6 +70,8 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     public Dictionary<Client, Dictionary<MessageType, int>> clientsMessages = new Dictionary<Client, Dictionary<MessageType, int>>();
 
     public double latency = 0;
+
+    
 
     Process nextServer = null;
 
@@ -83,10 +86,8 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
     public void Start()
     {
-#if UNITY_SERVER
+#if UNITY_SERVER 
         string[] args = Environment.GetCommandLineArgs();
-
-        UnityEngine.Debug.Log(args.Length);
 
         if (args.Length > 1)
         {
@@ -95,8 +96,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         }
         else
         {
-            StartServer(10100);
-            UnityEngine.Debug.Log("Iniciaste el server principal en el 10100");
+            StartServer(48000);
         }
 #endif
     }
@@ -231,7 +231,16 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         if (!PackageManager.CheckTail(data))
         {
             UnityEngine.Debug.Log("Se rompio");
-            return;
+            switch ((MessageType)messageType)
+            {
+                case MessageType.Disconnect:
+                case MessageType.PlayerList:
+                case MessageType.Console:
+                    SendToServer(new NetRequest(data));
+                    break;
+                default:
+                    break;
+            }
         }
         int instance;
         int id;
@@ -346,6 +355,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 {
                     Broadcast(new NetPlayersList(clients).Serialize());
                 }
+                OnCharge();
                 break;
             case MessageType.Disconnect:
                 instance = BitConverter.ToInt32(data, 8);
@@ -354,10 +364,6 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 if (!isServer)
                 {
                     Destroy(NetworkManager.Instance.players[id]);
-                }
-                else
-                {
-                    //Broadcast(data);
                 }
                 clientsMessages.Remove(clients[id]);
                 clients.Remove(id);
@@ -417,11 +423,17 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 }
                 break;
             case MessageType.Request:
+                byte[] dataToReturn = new NetRequest().Deserialize(data);
+                int msgType = PackageManager.CheckMessage(dataToReturn);
                 if (isServer)
                 {
-                    byte[] aux = new NetRequest().Deserialize(data);
-                    int msgType = PackageManager.CheckMessage(aux);
-                    PackageManager.RequestMessage((MessageType)msgType, aux);
+#if UNITY_SERVER
+                    PackageManager.ResendMessageServer((MessageType)msgType, dataToReturn);
+#endif
+                }
+                else
+                {   
+                    PackageManager.ResendMessage((MessageType)msgType, dataToReturn);
                 }
                 break;
             case MessageType.Reconnect:
@@ -439,6 +451,11 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     public void SendToServer<T>(IMessage<T> data)
     {
         connection.Send(data.Serialize());
+    }
+
+    public void SendToServer(byte[] data)
+    {
+        connection.Send(data);
     }
 
     public void Broadcast(byte[] data)
