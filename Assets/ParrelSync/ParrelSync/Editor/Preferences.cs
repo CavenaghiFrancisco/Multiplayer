@@ -34,7 +34,7 @@ namespace ParrelSync
 
                 EditorPrefs.SetBool(key, value);
                 valueCache = value;
-                Debug.Log("Editor preference updated. key: " + key + ", value: " + value);
+                UnityEngine.Debug.Log("Editor preference updated. key: " + key + ", value: " + value);
             }
         }
 
@@ -102,7 +102,7 @@ namespace ParrelSync
             {
                 AssetModPref.ClearValue();
                 AlsoCheckUnityLockFileStaPref.ClearValue();
-                Debug.Log("Editor preferences cleared");
+                UnityEngine.Debug.Log("Editor preferences cleared");
             }
             GUILayout.EndVertical();
         }

@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -59,7 +61,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
     const int limitPlayers = 2;
 
-    private Dictionary<int, Client> clients = new Dictionary<int, Client>();
+    public Dictionary<int, Client> clients = new Dictionary<int, Client>();
     private Dictionary<int, TimerOut> clientsTimer = new Dictionary<int, TimerOut>();
     public Dictionary<int, double> clientsLatency = new Dictionary<int, double>();
     private readonly Dictionary<IPEndPoint, int> ipToId = new Dictionary<IPEndPoint, int>();
@@ -67,6 +69,8 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     public Dictionary<Client, Dictionary<MessageType, int>> clientsMessages = new Dictionary<Client, Dictionary<MessageType, int>>();
 
     public double latency = 0;
+
+    Process nextServer = null;
 
     DateTime lastTime = default;
 
@@ -80,8 +84,20 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     public void Start()
     {
 #if UNITY_SERVER
-        Debug.Log("Hola");
-        StartServer(10100);
+        string[] args = Environment.GetCommandLineArgs();
+
+        UnityEngine.Debug.Log(args.Length);
+
+        if (args.Length > 1)
+        {
+            string arg = args[1];
+            StartServer(int.Parse(arg));
+        }
+        else
+        {
+            StartServer(10100);
+            UnityEngine.Debug.Log("Iniciaste el server principal en el 10100");
+        }
 #endif
     }
 
@@ -115,8 +131,6 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         if (connection != null)
             connection.FlushReceiveData();
 
-
-
         if (isServer)
         {
             if (connection != null)
@@ -147,7 +161,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 serverTimer.UpdateTimer();
                 if (serverTimer.IsTimeOut())
                 {
-                    Debug.Log("Se cayo el server");
+                    UnityEngine.Debug.Log("Se cayo el server");
                 }
                 PackageManager.CheckTimers();
             }
@@ -162,7 +176,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         //Descomentar cuando hagamos con diferentes ip
         //if (!ipToId.ContainsKey(ip)) 
         //{
-        Debug.Log("Adding client: " + ip.Address);
+        UnityEngine.Debug.Log("Adding client: " + ip.Address);
 
         int id = clientId;
         ipToId[ip] = clientId;
@@ -187,7 +201,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
         if (isServer)
         {
-            Debug.Log("Enviando lista");
+            UnityEngine.Debug.Log("Enviando lista");
             Broadcast(new NetPlayersList(clients).Serialize());
             Broadcast(new NetStayAlive(DateTime.Now, 0).Serialize());
             Broadcast(new NetPlayersList(clients).Serialize());
@@ -195,11 +209,18 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
     }
 
+    private void AddClientToRedirect(IPEndPoint ip)
+    {
+        UnityEngine.Debug.Log("Agregando al sobrante");
+        StartCoroutine(BroadcastWithTimer(ip));
+
+    }
+
     private void RemoveClient(IPEndPoint ip)
     {
         if (ipToId.ContainsKey(ip))
         {
-            Debug.Log("Removing client: " + ip.Address);
+            UnityEngine.Debug.Log("Removing client: " + ip.Address);
             clients.Remove(ipToId[ip]);
         }
     }
@@ -209,7 +230,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         int messageType = PackageManager.CheckMessage(data);
         if (!PackageManager.CheckTail(data))
         {
-            Debug.Log("Se rompio");
+            UnityEngine.Debug.Log("Se rompio");
             return;
         }
         int instance;
@@ -230,7 +251,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                     }
                     else
                     {
-                        Debug.Log("Se perdio el mensaje" + instance);
+                        UnityEngine.Debug.Log("Se perdio el mensaje" + instance);
                     }
                 }
                 if (isServer)
@@ -251,7 +272,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                     }
                     else
                     {
-                        Debug.Log("Ser perdio el mensaje de consola" + instance);
+                        UnityEngine.Debug.Log("Ser perdio el mensaje de consola" + instance);
                     }
                 }
                 if (isServer)
@@ -264,15 +285,16 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 {
                     if (clients.Count < limitPlayers)
                     {
-                        Debug.Log("Recibi el handshake");
+                        UnityEngine.Debug.Log("Recibi el handshake");
                         AddClient(ip);
                         Broadcast(data);
                         Broadcast(new NetPlayersList(clients).Serialize());
                     }
                     else
                     {
-                        Debug.Log("Se lleno el server");
-                        //Mandar a otro server
+                        AddClientToRedirect(ip);
+                        LaunchNewInstance();
+                        UnityEngine.Debug.Log("Se lleno el server");
                     }
                 }
                 else
@@ -281,7 +303,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 }
                 break;
             case MessageType.PlayerList:
-                Debug.Log("Recibi la lista");
+                UnityEngine.Debug.Log("Recibi la lista");
                 if (!ownIdAssigned)
                 {
                     ownIdAssigned = true;
@@ -290,38 +312,35 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 clients = new NetPlayersList().Deserialize(data);
                 if (!isServer)
                 {
-                    //if (PackageManager.GetID(data) != ownId)
-                    //{
-                        Debug.Log(PackageManager.GetID(data) + "Mando la playlist");
-                        foreach (KeyValuePair<int, Client> kvp in new NetPlayersList().Deserialize(data))
+                    UnityEngine.Debug.Log(PackageManager.GetID(data) + "Mando la playlist");
+                    foreach (KeyValuePair<int, Client> kvp in new NetPlayersList().Deserialize(data))
+                    {
+                        int count = 0;
+                        foreach (KeyValuePair<int, GameObject> player in players)
                         {
-                            int count = 0;
-                            foreach (KeyValuePair<int, GameObject> player in players)
+                            if (player.Value.GetComponent<Player>().ID != kvp.Value.id)
                             {
-                                if (player.Value.GetComponent<Player>().ID != kvp.Value.id)
-                                {
-                                    count++;
-                                }
-                            }
-                            if (count == players.Count)
-                            {
-                                if (!clients.ContainsKey(kvp.Value.id))
-                                {
-                                    clients.Add(kvp.Value.id, kvp.Value);
-                                }
-                                Player newPlayer = Instantiate(player, transform.position, Quaternion.identity).GetComponent<Player>();
-
-                                newPlayer.ID = kvp.Value.id;
-
-                                players.Add(newPlayer.ID, newPlayer.gameObject);
-
-                                clientsMessages.Add(kvp.Value, new Dictionary<MessageType, int>());
-                                clientsMessages[kvp.Value].Add(MessageType.Position, 0);
-                                clientsMessages[kvp.Value].Add(MessageType.Console, 0);
-                                clientsMessages[kvp.Value].Add(MessageType.Disconnect, 0);
+                                count++;
                             }
                         }
-                    //}
+                        if (count == players.Count)
+                        {
+                            if (!clients.ContainsKey(kvp.Value.id))
+                            {
+                                clients.Add(kvp.Value.id, kvp.Value);
+                            }
+                            Player newPlayer = Instantiate(player, transform.position, Quaternion.identity).GetComponent<Player>();
+
+                            newPlayer.ID = kvp.Value.id;
+
+                            players.Add(newPlayer.ID, newPlayer.gameObject);
+
+                            clientsMessages.Add(kvp.Value, new Dictionary<MessageType, int>());
+                            clientsMessages[kvp.Value].Add(MessageType.Position, 0);
+                            clientsMessages[kvp.Value].Add(MessageType.Console, 0);
+                            clientsMessages[kvp.Value].Add(MessageType.Disconnect, 0);
+                        }
+                    }
                 }
                 else
                 {
@@ -331,7 +350,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
             case MessageType.Disconnect:
                 instance = BitConverter.ToInt32(data, 8);
                 id = BitConverter.ToInt32(data, 4);
-                Debug.Log("Se desconecto el jugador " + id);
+                UnityEngine.Debug.Log("Se desconecto el jugador " + id);
                 if (!isServer)
                 {
                     Destroy(NetworkManager.Instance.players[id]);
@@ -348,8 +367,8 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 if (isServer)
                 {
 #if UNITY_SERVER
-                        PackageManager.lastMessagesReceivedPerClient.Remove(id);
-                        PackageManager.messageTimersPerClient.Remove(id);
+                    PackageManager.lastMessagesReceivedPerClient.Remove(id);
+                    PackageManager.messageTimersPerClient.Remove(id);
 #endif
                     Broadcast(data);
                     Broadcast(new NetPlayersList(clients).Serialize());
@@ -405,6 +424,13 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                     PackageManager.RequestMessage((MessageType)msgType, aux);
                 }
                 break;
+            case MessageType.Reconnect:
+                if (!isServer)
+                {
+                    UnityEngine.Debug.Log("Recibi el connect");
+                    ConnectToNextServer();
+                }
+                break;
             default:
                 break;
         }
@@ -438,5 +464,42 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 connection.Send(data, client.Value.ipEndPoint);
             }
         }
+    }
+
+    public void Broadcast(byte[] data, IPEndPoint ipEndPoint)
+    {
+        connection.Send(data, ipEndPoint);
+    }
+
+    private void LaunchNewInstance()
+    {
+        if (nextServer != null)
+        {
+            if (nextServer.HasExited)
+            {
+                nextServer = null;
+            }
+        }
+
+        if (nextServer == null)
+        {
+            string applicationPath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
+
+            nextServer = Process.Start(applicationPath, (port + 1).ToString());
+        }
+    }
+
+    private IEnumerator BroadcastWithTimer(IPEndPoint iPEndPoint)
+    {
+        UnityEngine.Debug.Log("AAAAAAAAAA sacalo de aca");
+        yield return new WaitForSeconds(3);
+        UnityEngine.Debug.Log("YAAAAAAA");
+        Broadcast(new NetReconnect("").Serialize(), iPEndPoint);
+    }
+
+    private void ConnectToNextServer()
+    {
+        connection.Close();
+        StartClient(IPAddress.Parse("127.0.0.1"), port + 1);
     }
 }

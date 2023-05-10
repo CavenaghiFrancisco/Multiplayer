@@ -72,7 +72,7 @@ namespace ParrelSync
 
 
         /// <summary>
-        /// Debug override so we can quickly print out the project info.
+        /// UnityEngine.Debug override so we can quickly print out the project info.
         /// </summary>
         /// <returns></returns>
         public override string ToString()

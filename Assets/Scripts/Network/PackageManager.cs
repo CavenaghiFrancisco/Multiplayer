@@ -108,7 +108,7 @@ public class PackageManager
             case MessageType.Console:
                 lastStringMessagesReceived.Add(data);
                 messageTimers.Add(new TimerOut((float)NetworkManager.Instance.latency / 1000.0f * timeOffset), data);
-                Debug.Log("Se agrego uno de consola");
+                UnityEngine.Debug.Log("Se agrego uno de consola");
                 break;
             case MessageType.Disconnect:
                 lastDisconnectMessagesReceived.Add(data);
@@ -179,39 +179,41 @@ public class PackageManager
 #if UNITY_SERVER
     public static void ServerAddMessageSend(byte[] data)
     {
-        int id = GetID(data);
-        switch ((MessageType)CheckMessage(data))
+        if(NetworkManager.Instance.clients.Count > 0)
         {
-            case MessageType.Console:
-            case MessageType.Disconnect:
-            case MessageType.PlayerList:
-                if (!lastMessagesSendServer.ContainsKey((MessageType)CheckMessage(data)))
-                {
-                    lastMessagesSendServer.Add((MessageType)CheckMessage(data), new List<byte[]>());
-                }
-                lastMessagesSendServer[(MessageType)CheckMessage(data)].Add(data);
-
-                if (!messageTimersPerClient.ContainsKey(id))
-                    messageTimersPerClient.Add(id, new Dictionary<TimerOut, byte[]>());
-
-                if (messageTimersPerClient.ContainsKey(id))
-                {
-                    if (id == -1)
+            int id = GetID(data);
+            switch ((MessageType)CheckMessage(data))
+            {
+                case MessageType.Console:
+                case MessageType.Disconnect:
+                case MessageType.PlayerList:
+                    if (!lastMessagesSendServer.ContainsKey((MessageType)CheckMessage(data)))
                     {
-                        messageTimersPerClient[id].Add(new TimerOut((float)NetworkManager.Instance.clientsLatency.Values.Max() / 1000.0f * timeOffset), data);
+                        lastMessagesSendServer.Add((MessageType)CheckMessage(data), new List<byte[]>());
                     }
-                    else
+                    lastMessagesSendServer[(MessageType)CheckMessage(data)].Add(data);
+
+                    if (!messageTimersPerClient.ContainsKey(id))
+                        messageTimersPerClient.Add(id, new Dictionary<TimerOut, byte[]>());
+
+                    if (messageTimersPerClient.ContainsKey(id))
                     {
-                        if(NetworkManager.Instance.clientsLatency.ContainsKey(id))
-                            messageTimersPerClient[id].Add(new TimerOut((float)NetworkManager.Instance.clientsLatency[id] / 1000.0f * timeOffset), data);
+                        if (id == -1)
+                        {
+                            messageTimersPerClient[id].Add(new TimerOut((float)NetworkManager.Instance.clientsLatency.Values.Max() / 1000.0f * timeOffset), data);
+                        }
+                        else
+                        {
+                            if (NetworkManager.Instance.clientsLatency.ContainsKey(id))
+                                messageTimersPerClient[id].Add(new TimerOut((float)NetworkManager.Instance.clientsLatency[id] / 1000.0f * timeOffset), data);
+                        }
                     }
-                }
-                    
-                break;
-            default:
-                break;
+
+                    break;
+                default:
+                    break;
+            }
         }
-
     }
 #endif
 

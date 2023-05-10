@@ -34,7 +34,8 @@ public class ChatScreen : MonoBehaviourSingleton<ChatScreen>
 
     private void OnApplicationQuit()
     {
-        NetworkManager.Instance.SendToServer(new NetDisconnect("a"));
+        if(NetworkManager.Instance.ownIdAssigned)
+            NetworkManager.Instance.SendToServer(new NetDisconnect("a"));
     }
 
     private void Update()

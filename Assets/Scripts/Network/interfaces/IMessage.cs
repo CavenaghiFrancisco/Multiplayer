@@ -14,7 +14,8 @@ public enum MessageType
     PlayerList = 2,
     Disconnect = 3,
     StayAlive = 4,
-    Request = 5
+    Request = 5,
+    Reconnect = 6
 }
 
 public interface IMessage<T>

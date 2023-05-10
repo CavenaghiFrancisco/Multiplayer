@@ -9,7 +9,7 @@ class ServerLoad : MonoBehaviour
 //        NetworkManager a;
 //        a.player = Resources.Load<GameObject>("Player");
 //        a.StartServer(8500);
-//        Debug.Log("Hola server");
+//        UnityEngine.Debug.Log("Hola server");
 //    }
 //#if !UNITY_SERVER
 //    [RuntimeInitializeOnLoadMethod]

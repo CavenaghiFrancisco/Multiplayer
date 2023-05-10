@@ -4,7 +4,6 @@ using UnityEngine;
 using UnityEditor;
 using System.Linq;
 using System.IO;
-using Debug = UnityEngine.Debug;
 
 namespace ParrelSync
 {
@@ -56,7 +55,7 @@ namespace ParrelSync
         {
             if (IsClone())
             {
-                Debug.LogError("This project is already a clone. Cannot clone it.");
+                UnityEngine.Debug.LogError("This project is already a clone. Cannot clone it.");
                 return null;
             }
 
@@ -90,21 +89,21 @@ namespace ParrelSync
 
             if (string.IsNullOrEmpty(cloneProjectPath))
             {
-                Debug.LogError("The number of cloned projects has reach its limit. Limit: " + MaxCloneProjectCount);
+                UnityEngine.Debug.LogError("The number of cloned projects has reach its limit. Limit: " + MaxCloneProjectCount);
                 return null;
             }
 
             Project cloneProject = new Project(cloneProjectPath);
 
-            Debug.Log("Start cloning project, original project: " + sourceProject + ", clone project: " + cloneProject);
+            UnityEngine.Debug.Log("Start cloning project, original project: " + sourceProject + ", clone project: " + cloneProject);
 
             ClonesManager.CreateProjectFolder(cloneProject);
 
             //Copy Folders           
-            Debug.Log("Library copy: " + cloneProject.libraryPath);
+            UnityEngine.Debug.Log("Library copy: " + cloneProject.libraryPath);
             ClonesManager.CopyDirectoryWithProgressBar(sourceProject.libraryPath, cloneProject.libraryPath,
                 "Cloning Project Library '" + sourceProject.name + "'. ");
-            Debug.Log("Packages copy: " + cloneProject.libraryPath);
+            UnityEngine.Debug.Log("Packages copy: " + cloneProject.libraryPath);
             ClonesManager.CopyDirectoryWithProgressBar(sourceProject.packagesPath, cloneProject.packagesPath,
               "Cloning Project Packages '" + sourceProject.name + "'. ");
 
@@ -147,13 +146,13 @@ namespace ParrelSync
         {
             if (!Directory.Exists(projectPath))
             {
-                Debug.LogError("Cannot open the project - provided folder (" + projectPath + ") does not exist.");
+                UnityEngine.Debug.LogError("Cannot open the project - provided folder (" + projectPath + ") does not exist.");
                 return;
             }
 
             if (projectPath == ClonesManager.GetCurrentProjectPath())
             {
-                Debug.LogError("Cannot open the project - it is already open.");
+                UnityEngine.Debug.LogError("Cannot open the project - it is already open.");
                 return;
             }
 
@@ -163,7 +162,7 @@ namespace ParrelSync
 
             string fileName = GetApplicationPath();
             string args = "-projectPath \"" + projectPath + "\"";
-            Debug.Log("Opening project \"" + fileName + " " + args + "\"");
+            UnityEngine.Debug.Log("Opening project \"" + fileName + " " + args + "\"");
             ClonesManager.StartHiddenConsoleProcess(fileName, args);
         }
 
@@ -232,7 +231,7 @@ namespace ParrelSync
             switch (Application.platform)
             {
                 case (RuntimePlatform.WindowsEditor):
-                    Debug.Log("Attempting to delete folder \"" + cloneProjectPath + "\"");
+                    UnityEngine.Debug.Log("Attempting to delete folder \"" + cloneProjectPath + "\"");
 
                     //The argument file will be deleted first at the beginning of the project deletion process 
                     //to prevent any further reading and writing to it(There's a File.Exist() check at the (file)editor windows.)
@@ -245,7 +244,7 @@ namespace ParrelSync
 
                     break;
                 case (RuntimePlatform.OSXEditor):
-                    Debug.Log("Attempting to delete folder \"" + cloneProjectPath + "\"");
+                    UnityEngine.Debug.Log("Attempting to delete folder \"" + cloneProjectPath + "\"");
 
                     //The argument file will be deleted first at the beginning of the project deletion process 
                     //to prevent any further reading and writing to it(There's a File.Exist() check at the (file)editor windows.)
@@ -257,7 +256,7 @@ namespace ParrelSync
 
                     break;
                 case (RuntimePlatform.LinuxEditor):
-                    Debug.Log("Attempting to delete folder \"" + cloneProjectPath + "\"");
+                    UnityEngine.Debug.Log("Attempting to delete folder \"" + cloneProjectPath + "\"");
                     identifierFile = Path.Combine(cloneProjectPath, ClonesManager.ArgumentFileName);
                     File.Delete(identifierFile);
 
@@ -265,7 +264,7 @@ namespace ParrelSync
 
                     break;
                 default:
-                    Debug.LogWarning("Not in a known editor. Where are you!?");
+                    UnityEngine.Debug.LogWarning("Not in a known editor. Where are you!?");
                     break;
             }
         }
@@ -281,7 +280,7 @@ namespace ParrelSync
         public static void CreateProjectFolder(Project project)
         {
             string path = project.projectPath;
-            Debug.Log("Creating new empty folder at: " + path);
+            UnityEngine.Debug.Log("Creating new empty folder at: " + path);
             Directory.CreateDirectory(path);
         }
 
@@ -295,11 +294,11 @@ namespace ParrelSync
         {
             if (Directory.Exists(destinationProject.libraryPath))
             {
-                Debug.LogWarning("Library copy: destination path already exists! ");
+                UnityEngine.Debug.LogWarning("Library copy: destination path already exists! ");
                 return;
             }
 
-            Debug.Log("Library copy: " + destinationProject.libraryPath);
+            UnityEngine.Debug.Log("Library copy: " + destinationProject.libraryPath);
             ClonesManager.CopyDirectoryWithProgressBar(sourceProject.libraryPath, destinationProject.libraryPath,
                 "Cloning project '" + sourceProject.name + "'. ");
         }
@@ -319,7 +318,7 @@ namespace ParrelSync
             destinationPath = destinationPath.Replace(" ", "\\ ");
             var command = string.Format("ln -s {0} {1}", sourcePath, destinationPath);
 
-            Debug.Log("Mac hard link " + command);
+            UnityEngine.Debug.Log("Mac hard link " + command);
 
             ClonesManager.ExecuteBashCommand(command);
         }
@@ -335,7 +334,7 @@ namespace ParrelSync
             destinationPath = destinationPath.Replace(" ", "\\ ");
             var command = string.Format("ln -s {0} {1}", sourcePath, destinationPath);           
 
-            Debug.Log("Linux Symlink " + command);
+            UnityEngine.Debug.Log("Linux Symlink " + command);
 
             ClonesManager.ExecuteBashCommand(command);
         }
@@ -348,7 +347,7 @@ namespace ParrelSync
         private static void CreateLinkWin(string sourcePath, string destinationPath)
         {
             string cmd = "/C mklink /J " + string.Format("\"{0}\" \"{1}\"", destinationPath, sourcePath);
-            Debug.Log("Windows junction: " + cmd);
+            UnityEngine.Debug.Log("Windows junction: " + cmd);
             ClonesManager.StartHiddenConsoleProcess("cmd.exe", cmd);
         }
 
@@ -381,13 +380,13 @@ namespace ParrelSync
                         CreateLinkLinux(sourcePath, destinationPath);
                         break;
                     default:
-                        Debug.LogWarning("Not in a known editor. Application.platform: " + Application.platform);
+                        UnityEngine.Debug.LogWarning("Not in a known editor. Application.platform: " + Application.platform);
                         break;
                 }
             }
             else
             {
-                Debug.LogWarning("Skipping Asset link, it already exists: " + destinationPath);
+                UnityEngine.Debug.LogWarning("Skipping Asset link, it already exists: " + destinationPath);
             }
         }
 
@@ -536,7 +535,7 @@ namespace ParrelSync
             /// Directory cannot be copied into itself.
             if (source.FullName.ToLower() == destination.FullName.ToLower())
             {
-                Debug.LogError("Cannot copy directory into itself.");
+                UnityEngine.Debug.LogError("Cannot copy directory into itself.");
                 return;
             }
 

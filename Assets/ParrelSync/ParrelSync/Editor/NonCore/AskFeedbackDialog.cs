@@ -27,7 +27,7 @@
             }
         }
 
-        //[MenuItem("ParrelSync/(Debug)Show AskFeedbackDialog ")]
+        //[MenuItem("ParrelSync/(UnityEngine.Debug)Show AskFeedbackDialog ")]
         private static void ShowDialog()
         {
             int option = EditorUtility.DisplayDialogComplex("Do you like " + ParrelSync.ClonesManager.ProjectName + "?",
@@ -42,37 +42,37 @@
             {
                 // First parameter.
                 case 0:
-                    Debug.Log("AskFeedbackDialog: Star on GitHub selected");
+                    UnityEngine.Debug.Log("AskFeedbackDialog: Star on GitHub selected");
                     EditorPrefs.SetBool(StopShowingKey, true);
                     EditorPrefs.DeleteKey(InitializeOnLoadCountKey);
                     Application.OpenURL(ExternalLinks.GitHubHome);
                     break;
                 // Second parameter.
                 case 1:
-                    Debug.Log("AskFeedbackDialog: Close and never show again.");
+                    UnityEngine.Debug.Log("AskFeedbackDialog: Close and never show again.");
                     EditorPrefs.SetBool(StopShowingKey, true);
                     EditorPrefs.DeleteKey(InitializeOnLoadCountKey);
                     break;
                 // Third parameter.
                 case 2:
-                    Debug.Log("AskFeedbackDialog: Remind me next time");
+                    UnityEngine.Debug.Log("AskFeedbackDialog: Remind me next time");
                     EditorPrefs.SetInt(InitializeOnLoadCountKey, 0);
                     break;
                 default:
-                    //Debug.Log("Close windows.");
+                    //UnityEngine.Debug.Log("Close windows.");
                     break;
             }
         }
 
         ///// <summary>
-        ///// For debug purpose
+        ///// For UnityEngine.Debug purpose
         ///// </summary>
-        //[MenuItem("ParrelSync/(Debug)Delete AskFeedbackDialog keys")]
-        //private static void DebugDeleteAllKeys()
+        //[MenuItem("ParrelSync/(UnityEngine.Debug)Delete AskFeedbackDialog keys")]
+        //private static void UnityEngine.DebugDeleteAllKeys()
         //{
         //    EditorPrefs.DeleteKey(InitializeOnLoadCountKey);
         //    EditorPrefs.DeleteKey(StopShowingKey);
-        //    Debug.Log("AskFeedbackDialog keys deleted");
+        //    UnityEngine.Debug.Log("AskFeedbackDialog keys deleted");
         //}
     }
 }
