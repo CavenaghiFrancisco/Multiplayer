@@ -60,7 +60,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
     TimerOut serverTimer;
 
-    const int limitPlayers = 3;
+    const int limitPlayers = 1;
 
     public Dictionary<int, Client> clients = new Dictionary<int, Client>();
     private Dictionary<int, TimerOut> clientsTimer = new Dictionary<int, TimerOut>();
@@ -71,7 +71,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
     public double latency = 0;
 
-    
+    public Action<byte[]> OnReceiveDataFromReflection;
 
     Process nextServer = null;
 
@@ -123,6 +123,8 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         NetHandShake handShake = new NetHandShake(BitConverter.ToInt32(ip.GetAddressBytes(), 0), port);
 
         connection.Send(handShake.Serialize());
+
+
     }
 
 
@@ -256,7 +258,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                     if (instance > clientsMessages[clients[id]][MessageType.Position])
                     {
                         clientsMessages[clients[id]][MessageType.Position] = instance;
-                        NetworkManager.Instance.players[id].GetComponent<Player>().Move(f.Deserialize(data));
+                        //NetworkManager.Instance.players[id].GetComponent<Player>().Move(f.Deserialize(data));
                     }
                     else
                     {
@@ -432,7 +434,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 #endif
                 }
                 else
-                {   
+                {
                     PackageManager.ResendMessage((MessageType)msgType, dataToReturn);
                 }
                 break;
@@ -441,6 +443,16 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 {
                     UnityEngine.Debug.Log("Recibi el connect");
                     ConnectToNextServer();
+                }
+                break;
+            case MessageType.Reflection:
+                if (isServer)
+                {
+                    Broadcast(data);
+                }
+                else
+                {
+                    OnReceiveDataFromReflection(data);
                 }
                 break;
             default:
@@ -488,8 +500,27 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         connection.Send(data, ipEndPoint);
     }
 
+
+    //private static string GetProcessCommandLine(Process process)
+    //{
+    //    string commandLine = string.Join(" ", process.StartInfo.Arguments);
+    //    return commandLine;
+    //}
+
+
     private void LaunchNewInstance()
     {
+        //Process[] processes = Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName);
+        //if (processes.Length > 0)
+        //{
+        //    // Iteramos sobre los procesos encontrados
+        //    foreach (Process process in processes)
+        //    {
+        //        Console.WriteLine("Proceso ID: " + process.Id);
+        //        Console.WriteLine("Argumentos: " + GetProcessCommandLine(process));
+        //        Console.WriteLine();
+        //    }
+        //}
         if (nextServer != null)
         {
             if (nextServer.HasExited)
@@ -508,9 +539,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
     private IEnumerator BroadcastWithTimer(IPEndPoint iPEndPoint)
     {
-        UnityEngine.Debug.Log("AAAAAAAAAA sacalo de aca");
         yield return new WaitForSeconds(3);
-        UnityEngine.Debug.Log("YAAAAAAA");
         Broadcast(new NetReconnect("").Serialize(), iPEndPoint);
     }
 

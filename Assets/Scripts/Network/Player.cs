@@ -4,12 +4,12 @@ using UnityEngine;
 
 public class Player : MonoBehaviour
 {
-    [SerializeField] private int id = -1;
+    [Net][SerializeField] private int id = -1;
     [SerializeField] private GameObject mainPlayer;
-    public Vector3 pos;
-    public Color color;
+    [Net] public Vector3 pos;
+    [Net] public Color color;
     public Color[] colors;
-    bool colorAssigned = false;
+    [Net] bool colorAssigned = false;
     private Material mat;
 
     private void Start()
