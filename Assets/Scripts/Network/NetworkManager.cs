@@ -5,8 +5,12 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Runtime.Serialization.Formatters.Binary;
 using UnityEngine;
+using System.Net;
+using System.Net.Sockets;
+
 
 [Serializable]
 public struct Client
@@ -500,27 +504,60 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
         connection.Send(data, ipEndPoint);
     }
 
+    IPEndPoint[] GetUdpEndpointsForProcess(int processId)
+    {
+        IPGlobalProperties properties = IPGlobalProperties.GetIPGlobalProperties();
+        IPEndPoint[] udpEndpoints = properties.GetActiveUdpListeners();
 
-    //private static string GetProcessCommandLine(Process process)
-    //{
-    //    string commandLine = string.Join(" ", process.StartInfo.Arguments);
-    //    return commandLine;
-    //}
+        List<IPEndPoint> udpEndpointsForProcess = new List<IPEndPoint>();
 
+        foreach (var endpoint in udpEndpoints)
+        {
+            if (endpoint.Port >= 48000 && endpoint.Port <= 48100)
+            {
+                udpEndpointsForProcess.Add(endpoint);
+            }
+        }
+
+        return udpEndpointsForProcess.ToArray();
+    }
 
     private void LaunchNewInstance()
     {
-        //Process[] processes = Process.GetProcessesByName(Process.GetCurrentProcess().ProcessName);
-        //if (processes.Length > 0)
-        //{
-        //    // Iteramos sobre los procesos encontrados
-        //    foreach (Process process in processes)
-        //    {
-        //        Console.WriteLine("Proceso ID: " + process.Id);
-        //        Console.WriteLine("Argumentos: " + GetProcessCommandLine(process));
-        //        Console.WriteLine();
-        //    }
-        //}
+        string applicationPath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
+
+        Process[] processes = Process.GetProcesses();
+
+        foreach (Process process in processes)
+        {
+            if (process.MainModule.FileName.Equals(applicationPath, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!process.HasExited)
+                {
+                    try
+                    {
+                        IPEndPoint[] udpEndpoints = GetUdpEndpointsForProcess(process.Id);
+
+                        if (udpEndpoints.Length > 0)
+                        {
+                            Console.WriteLine("Process: " + process.ProcessName);
+                            foreach (var endpoint in udpEndpoints)
+                            {
+                                if(endpoint.Port == port + 1)
+                                {
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine("Error al obtener las conexiones de red del proceso: " + e.Message);
+                    }
+                }
+            }
+        }
+
         if (nextServer != null)
         {
             if (nextServer.HasExited)
@@ -531,15 +568,16 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
 
         if (nextServer == null)
         {
-            string applicationPath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
-
-            nextServer = Process.Start(applicationPath, (port + 1).ToString());
+            ProcessStartInfo startInfo = new ProcessStartInfo();
+            startInfo.FileName = applicationPath;
+            startInfo.Arguments = (port + 1).ToString();
+            nextServer = Process.Start(startInfo);
         }
     }
 
     private IEnumerator BroadcastWithTimer(IPEndPoint iPEndPoint)
     {
-        yield return new WaitForSeconds(3);
+        yield return new WaitForSeconds(15);
         Broadcast(new NetReconnect("").Serialize(), iPEndPoint);
     }
 
