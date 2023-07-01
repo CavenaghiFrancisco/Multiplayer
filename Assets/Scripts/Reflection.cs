@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -24,8 +24,6 @@ public class Reflection : MonoBehaviour
             NetworkManager.Instance.SendToServer(msg);
         }
     }
-
-    
 
     private List<byte[]> Inspect(object obj, Type type, string fieldName = "")
     {
@@ -87,15 +85,17 @@ public class Reflection : MonoBehaviour
         if (obj is int)
         {
             Debug.Log(fieldName + " - Value: " + obj);
-           
+            MsgStack.Add(((int)obj).ToMsg(fieldName));
         }
         else if (obj is float)
         {
             Debug.Log(fieldName + " - Value: " + obj);
+            MsgStack.Add(((float)obj).ToMsg(fieldName));
         }
         else if (obj is bool)
         {
             Debug.Log(fieldName + " - Value: " + obj);
+            MsgStack.Add(((bool)obj).ToMsg(fieldName));
         }
         else if (obj is Vector3)
         {
@@ -104,12 +104,53 @@ public class Reflection : MonoBehaviour
         }
         else if (obj is Vector2)
         {
-
+            MsgStack.Add(((Vector2)obj).ToMsg(fieldName));
+        }
+        else if (obj is Char)
+        {
+            MsgStack.Add(((Char)obj).ToMsg(fieldName));
+        }
+        else if (obj is String)
+        {
+            MsgStack.Add(((String)obj).ToMsg(fieldName));
+        }
+        else if (obj is Quaternion)
+        {
+            MsgStack.Add(((Quaternion)obj).ToMsg(fieldName));
         }
         else if (obj is Color)
         {
             Debug.Log(fieldName + " - Value: " + obj);
-
+            MsgStack.Add(((Color)obj).ToMsg(fieldName));
+        }
+        else if (obj is Transform)
+        {
+            MsgStack.Add(((Transform)obj).ToMsg(fieldName));
+        }
+        else if(obj is IDictionary)
+        {
+            Type dictionaryType = obj.GetType();
+            if (typeof(IDictionary<,>).IsAssignableFrom(dictionaryType))
+            {
+                Type[] genericArguments = dictionaryType.GetGenericArguments();
+                Type keyType = genericArguments[0];
+                Type valueType = genericArguments[1];
+                MethodInfo toMsgMethod = typeof(NetSerializationExtensions).GetMethod("ToMsg");
+                MethodInfo genericToMsgMethod = toMsgMethod.MakeGenericMethod(keyType, valueType);
+                genericToMsgMethod.Invoke(this, new object[] { obj, fieldName });
+            }
+        }
+        else if(obj is IEnumerable)
+        {
+            Type enumerableType = obj.GetType();
+            if (typeof(IEnumerable<>).IsAssignableFrom(enumerableType))
+            {
+                Type[] genericArguments = enumerableType.GetGenericArguments();
+                Type itemType = genericArguments[0];
+                MethodInfo toMsgMethod = typeof(NetSerializationExtensions).GetMethod("ToMsg");
+                MethodInfo genericToMsgMethod = toMsgMethod.MakeGenericMethod(itemType);
+                genericToMsgMethod.Invoke(this, new object[] { obj, fieldName });
+            }
         }
         else
         {
