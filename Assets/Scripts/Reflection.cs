@@ -140,10 +140,10 @@ public class Reflection : MonoBehaviour
                 genericToMsgMethod.Invoke(this, new object[] { obj, fieldName });
             }
         }
-        else if(obj is IEnumerable)
+        else if(obj is ICollection)
         {
             Type enumerableType = obj.GetType();
-            if (typeof(IEnumerable<>).IsAssignableFrom(enumerableType))
+            if (typeof(ICollection<>).IsAssignableFrom(enumerableType))
             {
                 Type[] genericArguments = enumerableType.GetGenericArguments();
                 Type itemType = genericArguments[0];
@@ -163,8 +163,35 @@ public class Reflection : MonoBehaviour
 
     private (string, object) ConvertToData(byte[] data)
     {
-        (string, object) a = ("a", null);
-        return a ;
+        int reflectionType = -20;
+        reflectionType = PackageManager.CheckReflectionType(data);
+        switch ((ReflectionType)reflectionType)
+        {
+            case ReflectionType.Int:
+                return NetSerializationExtensions.MsgToInt(data);
+            case ReflectionType.Float:
+                return NetSerializationExtensions.MsgToFloat(data);
+            case ReflectionType.Bool:
+                return NetSerializationExtensions.MsgToBool(data);
+            case ReflectionType.String:
+                return NetSerializationExtensions.MsgToString(data);
+            case ReflectionType.Vector3:
+                return NetSerializationExtensions.MsgToVec3(data);
+            case ReflectionType.Vector2:
+                return NetSerializationExtensions.MsgToVec2(data);
+            case ReflectionType.Quaternion:
+                return NetSerializationExtensions.MsgToQuat(data);
+            case ReflectionType.Color:
+                return NetSerializationExtensions.MsgToColor(data);
+            case ReflectionType.Transform:
+                return NetSerializationExtensions.MsgToTransform(data);
+            case ReflectionType.Collection:
+                return NetSerializationExtensions.MsgToCollection<object>(data);
+            case ReflectionType.Dictionary:
+                return NetSerializationExtensions.MsgToDictionary<object,object>(data);
+            default:
+                return ("a",null);
+        }
     }
 
     private void OnReceiveData(byte[] data)
@@ -203,7 +230,7 @@ public class Reflection : MonoBehaviour
                             foreach (object element in (value as ICollection))
                             {
                                 fieldName += field.Name + "[" + i.ToString() + "]";
-                                OverWrite((value as IDictionary)[i], (value as IDictionary)[i].GetType(), receivedFieldName, 5, fieldName);
+                                OverWrite(element, element.GetType(), receivedFieldName, 5, fieldName);
                                 i++;
                             }
                         }

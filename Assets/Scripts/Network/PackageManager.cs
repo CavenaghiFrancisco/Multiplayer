@@ -29,7 +29,7 @@ public class PackageManager
 #if UNITY_SERVER
     public static void ResendMessageServer(MessageType messageType, byte[] data)
     {
-        if(lastMessagesSendServer.Count > 0 && lastMessagesSendServer[messageType].Count > 0)
+        if (lastMessagesSendServer.Count > 0 && lastMessagesSendServer[messageType].Count > 0)
         {
             byte[] newData = lastMessagesSendServer[messageType][lastMessagesSendServer.Count - 1];
             NetworkManager.Instance.Broadcast(newData, GetID(data));
@@ -86,6 +86,25 @@ public class PackageManager
         return messageType;
     }
 
+    public static int CheckReflectionType(byte[] data)
+    {
+        int reflectionType = -20;
+        try
+        {
+            using (MemoryStream stream = new MemoryStream(data))
+            {
+                BinaryFormatter formatter = new BinaryFormatter();
+                int messageType = (int)formatter.Deserialize(stream);
+                reflectionType = (int)formatter.Deserialize(stream);
+            }
+        }
+        catch
+        {
+            reflectionType = BitConverter.ToInt32(data, 4);
+        }
+        return reflectionType;
+    }
+
     public static int GetID(byte[] data)
     {
         int id = -20;
@@ -119,6 +138,74 @@ public class PackageManager
         catch
         {
             return (dataLength) - 4 == (BitConverter.ToInt32(data, data.Length - 4) / 3);
+        }
+    }
+
+    public static bool CheckReflectionTail(byte[] data)
+    {
+        int dataLength = data.Length;
+        try
+        {
+            BinaryFormatter formatter = new BinaryFormatter();
+            MemoryStream stream = new MemoryStream(data);
+            int messageType = (int)formatter.Deserialize(stream);  
+            int reflectionType = (int)formatter.Deserialize(stream);  
+            int ownId = (int)formatter.Deserialize(stream); 
+            int collectionInstance = (int)formatter.Deserialize(stream);  
+            int fieldNameLength = (int)formatter.Deserialize(stream);  
+
+            char[] fieldName = new char[fieldNameLength]; 
+
+            for (int i = 0; i < fieldNameLength; i++)
+            {
+                fieldName[i] = (char)formatter.Deserialize(stream);  
+            }
+            using MemoryStream stream2 = new MemoryStream(data, data.Length - 54, 54);
+            BinaryFormatter formatter2 = new BinaryFormatter();
+            int totalSize = (int)formatter2.Deserialize(stream2);
+            int dataSize = (dataLength - 54);
+            using MemoryStream stream3 = new MemoryStream(data, 216, 54);
+            BinaryFormatter formatter3 = new BinaryFormatter();
+            int pathLenghtSize = (int)formatter3.Deserialize(stream3);
+            int asciiSize = 0;
+            foreach(Char character in fieldName)
+            {
+                asciiSize += character;
+            }
+            return dataSize == (totalSize - asciiSize) / 3;
+        }
+        catch
+        {
+            int asciiSize = 0;
+            int fieldNameLength = BitConverter.ToInt32(data, 16);
+
+            char[] fieldName = new char[fieldNameLength];
+
+            int dataIndex = 20;
+
+            for (int i = dataIndex; i < fieldNameLength; i += sizeof(char))
+            {
+                fieldName[i] = BitConverter.ToChar(data, i);
+            }
+            return (dataLength) - 4 == (BitConverter.ToInt32(data, data.Length - 4) - asciiSize) / 3;
+        }
+    }
+
+    public static bool CheckIfIsOwner(byte[] data, int id)
+    {
+        try
+        {
+            BinaryFormatter formatter = new BinaryFormatter();
+            MemoryStream stream = new MemoryStream(data);
+            int messageType = (int)formatter.Deserialize(stream);
+            int reflectionType = (int)formatter.Deserialize(stream);
+            int ownId = (int)formatter.Deserialize(stream);
+            return id == ownId;
+        }
+        catch
+        {
+            int ownId = BitConverter.ToInt32(data, 8);
+            return id == ownId;
         }
     }
 
@@ -201,7 +288,7 @@ public class PackageManager
 #if UNITY_SERVER
     public static void ServerAddMessageSend(byte[] data)
     {
-        if(NetworkManager.Instance.clients.Count > 0)
+        if (NetworkManager.Instance.clients.Count > 0)
         {
             int id = GetID(data);
             switch ((MessageType)CheckMessage(data))

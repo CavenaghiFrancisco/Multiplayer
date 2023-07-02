@@ -234,18 +234,28 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
     public void OnReceiveData(byte[] data, IPEndPoint ip)
     {
         int messageType = PackageManager.CheckMessage(data);
-        if (!PackageManager.CheckTail(data))
+        if (messageType != (int)MessageType.Reflection)
         {
-            UnityEngine.Debug.Log("Se rompio");
-            switch ((MessageType)messageType)
+            if (!PackageManager.CheckTail(data))
             {
-                case MessageType.Disconnect:
-                case MessageType.PlayerList:
-                case MessageType.Console:
-                    SendToServer(new NetRequest(data));
-                    break;
-                default:
-                    break;
+                UnityEngine.Debug.Log("Se rompio");
+                switch ((MessageType)messageType)
+                {
+                    case MessageType.Disconnect:
+                    case MessageType.PlayerList:
+                    case MessageType.Console:
+                        SendToServer(new NetRequest(data));
+                        break;
+                    default:
+                        break;
+                }
+            }
+            else
+            {
+                if (!PackageManager.CheckReflectionTail(data))
+                {
+                    return;
+                }
             }
         }
         int instance;
@@ -456,7 +466,8 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                 }
                 else
                 {
-                    OnReceiveDataFromReflection(data);
+                    if (!PackageManager.CheckIfIsOwner(data, ownId))
+                        OnReceiveDataFromReflection(data);
                 }
                 break;
             default:
@@ -543,7 +554,7 @@ public class NetworkManager : MonoBehaviourSingleton<NetworkManager>, IReceiveDa
                             Console.WriteLine("Process: " + process.ProcessName);
                             foreach (var endpoint in udpEndpoints)
                             {
-                                if(endpoint.Port == port + 1)
+                                if (endpoint.Port == port + 1)
                                 {
                                     return;
                                 }
